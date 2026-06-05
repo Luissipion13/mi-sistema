@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 // SISTEMA DE GESTIÓN DE CONTRATACIONES — ITP RED CITE
 // ============================================================
 
-const API_URL = window.location.hostname === "localhost" 
-  ? "http://localhost:3001/api" 
-  : "http://172.16.14.35:3001/api";
+const API_URL = "http://172.16.14.35:3001/api";
 
 const api = async (endpoint, options = {}) => {
   const res = await fetch(`${API_URL}${endpoint}`, {
@@ -275,24 +273,14 @@ const ActuacionesPage = () => {
   const [syncResult, setSyncResult] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [especialistas, setEspecialistas] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [pageSize, setPageSize] = useState(35);
   const { values, onChange, onClear } = useFilters({ ano: "2026" });
 
   const fetchData = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams();
     Object.entries(values).forEach(([k, v]) => { if (v) params.append(k, v); });
-    params.append("page", page);
-    params.append("limit", pageSize);
-    api(`/ordenes?${params}`).then(r => {
-      setData(r.data || []);
-      setTotal(r.total || 0);
-      setTotalPages(r.totalPages || 0);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, [values, page, pageSize]);
+    api(`/ordenes?${params}`).then(r => setData(r.data || [])).catch(console.error).finally(() => setLoading(false));
+  }, [values]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { api("/ordenes/especialistas").then(setEspecialistas).catch(() => {}); }, []);
@@ -303,14 +291,12 @@ const ActuacionesPage = () => {
     try {
       const result = await api("/ordenes/sync", { method: "POST" });
       setSyncResult(result);
-      setPage(1);
       fetchData();
     } catch (err) { alert("Error al sincronizar: " + err.message); }
     finally { setSyncing(false); }
   };
 
-  const handleClear = () => { onClear(); setPage(1); };
-  const handleSearch = () => { setPage(1); fetchData(); };
+  const handleClear = () => { onClear(); };
 
   const columns = [
     { key:"ano", label:"AÑO", align:"center" },
@@ -325,33 +311,6 @@ const ActuacionesPage = () => {
     { key:"tipoContratacion", label:"TIPO CONTRATACIÓN" },
     { key:"nArmadas", label:"N° ARMADAS", align:"center", format: v => v || 0 },
   ];
-
-  // Pagination component
-  const Pagination = () => (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12, color:"#555" }}>
-      <button onClick={() => setPage(1)} disabled={page <= 1}
-        style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer", fontSize:12 }}>⏮</button>
-      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-        style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer", fontSize:12 }}>◀</button>
-      <span style={{ padding:"6px 12px" }}>
-        Página <input type="number" value={page} min={1} max={totalPages}
-          onChange={e => { const v = parseInt(e.target.value); if (v >= 1 && v <= totalPages) setPage(v); }}
-          style={{ width:50, textAlign:"center", border:"1px solid #ccc", borderRadius:4, padding:"4px", fontSize:12 }}
-        /> de {totalPages}
-      </span>
-      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-        style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer", fontSize:12 }}>▶</button>
-      <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
-        style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer", fontSize:12 }}>⏭</button>
-      <select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1); }}
-        style={{ padding:"6px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, marginLeft:8 }}>
-        <option value={20}>20</option>
-        <option value={35}>35</option>
-        <option value={50}>50</option>
-        <option value={100}>100</option>
-      </select>
-    </div>
-  );
 
   return (
     <div>
@@ -375,8 +334,8 @@ const ActuacionesPage = () => {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, background:"#e74c3c", display:"inline-block" }}></span> Anulado</span>
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <span style={{ fontSize:12, color:"#2c3e6b", fontWeight:600 }}>{total} registro(s)</span>
-          <button onClick={handleSearch} style={{ padding:"8px 16px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:11.5, fontWeight:600 }}>🔍 Buscar</button>
+          <span style={{ fontSize:12, color:"#2c3e6b", fontWeight:600 }}>{data.length} registro(s)</span>
+          <button onClick={fetchData} style={{ padding:"8px 16px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:11.5, fontWeight:600 }}>🔍 Buscar</button>
           <button onClick={handleSync} disabled={syncing}
             style={{ padding:"8px 16px", background: syncing ? "#95a5a6" : "#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: syncing ? "wait" : "pointer", fontSize:11.5, fontWeight:600 }}>
             {syncing ? "⏳ Sincronizando..." : "⚙️ Actualizar lista"}
@@ -404,19 +363,6 @@ const ActuacionesPage = () => {
       ) : (
         <div style={{ textAlign:"center", padding:40, color:"#95a5a6", fontSize:14, border:"1px solid #eee", borderRadius:6 }}>
           No se encontraron registros. Haz clic en "Actualizar lista" para cargar desde el SIGA.
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12, color:"#555", borderTop:"1px solid #eee", marginTop:8 }}>
-          <button onClick={() => setPage(1)} disabled={page <= 1} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer" }}>⏮</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer" }}>◀</button>
-          <span>Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({total} registros)</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer" }}>▶</button>
-          <button onClick={() => setPage(totalPages)} disabled={page >= totalPages} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer" }}>⏭</button>
-          <select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1); }} style={{ padding:"4px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, marginLeft:8 }}>
-            <option value={20}>20</option><option value={35}>35</option><option value={50}>50</option><option value={100}>100</option>
-          </select>
         </div>
       )}
 
