@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 
 const API_URL = window.location.hostname === "localhost" 
   ? "http://localhost:3001/api" 
-  : "http://172.16.14.35:3001/api";
+  : "https://victory-pogo-sash.ngrok-free.dev/api";
 
 const api = async (endpoint, options = {}) => {
   const res = await fetch(`${API_URL}${endpoint}`, {
