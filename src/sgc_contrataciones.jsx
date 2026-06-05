@@ -10,8 +10,7 @@ const API_URL = window.location.hostname === "localhost"
 
 const api = async (endpoint, options = {}) => {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
+	headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },    ...options,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Error en la petición");
