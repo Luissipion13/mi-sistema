@@ -330,14 +330,14 @@ const ActuacionesPage = () => {
   const columns = [
     { key:"ano",              label:"AÑO",      align:"center", width:"3%" },
     { key:"tipoBien",         label:"TIPO",     align:"center", width:"3%" },
-    { key:"nOrden",           label:"N° ORDEN", align:"center", width:"8%" },
+    { key:"nOrden",           label:"N° ORDEN", align:"center", width:"9%" },
     { key:"fecha",            label:"FECHA",    align:"center", width:"7%" },
-    { key:"usuarioSiga",      label:"ESPECIALISTA",             width:"11%" },
+    { key:"usuarioSiga",      label:"ESPECIALISTA",             width:"10%" },
     { key:"expSiaf",          label:"EXP.SIAF", align:"center", width:"6%" },
     { key:"concepto",         label:"CONCEPTO",                 width:"18%" },
-    { key:"proveedor",        label:"PROVEEDOR",                width:"16%" },
+    { key:"proveedor",        label:"PROVEEDOR",                width:"15%" },
     { key:"monto",            label:"MONTO(S/)", align:"right", width:"8%", format: v => fmt(v) },
-    { key:"tipoContratacion", label:"CONTRAT.", width:"10%" },
+    { key:"tipoContratacion", label:"CONTRAT.", width:"9%" },
     { key:"nArmadas",         label:"ARM.",     align:"center", width:"3%", format: v => v || 0 },
   ];
 
@@ -849,6 +849,20 @@ const LoginPage = ({ onLogin }) => {
 };
 
 // --- MAIN APP ---
+// Inject global styles to ensure full-width layout
+const GlobalStyle = () => {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      html, body, #root { margin:0; padding:0; width:100%; max-width:100% !important; box-sizing:border-box; }
+      * { box-sizing:border-box; }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+  return null;
+};
+
 export default function SGCApp() {
   const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState("inicio");
@@ -871,7 +885,8 @@ export default function SGCApp() {
   };
 
   return (
-    <div style={{ fontFamily:"'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", minHeight:"100vh", display:"flex", flexDirection:"column", background:"#f4f5f7" }}>
+    <div style={{ fontFamily:"'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", minHeight:"100vh", display:"flex", flexDirection:"column", background:"#f4f5f7", width:"100%", position:"relative" }}>
+      <GlobalStyle />
       <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px", height:52, background:"#fff", borderBottom:"3px solid #c0392b", boxShadow:"0 2px 8px rgba(0,0,0,0.08)", zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
           <button style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#555" }}>☰</button>
