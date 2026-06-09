@@ -10,8 +10,7 @@ const API_URL = window.location.hostname === "localhost"
 
 const api = async (endpoint, options = {}) => {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-    ...options,
+	headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },    ...options,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Error en la petición");
@@ -274,7 +273,6 @@ const ActuacionesPage = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [cronoOrder, setCronoOrder] = useState(null);
   const [especialistas, setEspecialistas] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -399,8 +397,8 @@ const ActuacionesPage = () => {
       ) : data.length > 0 ? (
         <DataTable columns={columns} data={data} onRowClick={setSelectedOrder}
           actions={[
-            { icon:"📅", label:"Registrar cronograma", onClick: r => setCronoOrder(r) },
             { icon:"📋", label:"Ver detalle", onClick: r => setSelectedOrder(r) },
+            { icon:"🖨️", label:"Imprimir", onClick: () => {} },
           ]} />
       ) : (
         <div style={{ textAlign:"center", padding:40, color:"#95a5a6", fontSize:14, border:"1px solid #eee", borderRadius:6 }}>
@@ -408,7 +406,18 @@ const ActuacionesPage = () => {
         </div>
       )}
 
-      {data.length > 0 && <Pagination />}
+      {totalPages > 1 && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12, color:"#555", borderTop:"1px solid #eee", marginTop:8 }}>
+          <button onClick={() => setPage(1)} disabled={page <= 1} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer" }}>⏮</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page <= 1 ? "#f0f0f0" : "#fff", cursor: page <= 1 ? "default" : "pointer" }}>◀</button>
+          <span>Página <strong>{page}</strong> de <strong>{totalPages}</strong> ({total} registros)</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer" }}>▶</button>
+          <button onClick={() => setPage(totalPages)} disabled={page >= totalPages} style={{ padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, background: page >= totalPages ? "#f0f0f0" : "#fff", cursor: page >= totalPages ? "default" : "pointer" }}>⏭</button>
+          <select value={pageSize} onChange={e => { setPageSize(parseInt(e.target.value)); setPage(1); }} style={{ padding:"4px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, marginLeft:8 }}>
+            <option value={20}>20</option><option value={35}>35</option><option value={50}>50</option><option value={100}>100</option>
+          </select>
+        </div>
+      )}
 
       <Modal open={!!selectedOrder} onClose={()=>setSelectedOrder(null)} title="Detalles de la Orden" subtitle="Información de la orden de compra/servicio">
         {selectedOrder && (
@@ -433,275 +442,7 @@ const ActuacionesPage = () => {
           </div>
         )}
       </Modal>
-
-      {/* MODAL CRONOGRAMA */}
-      <CronogramaModal order={cronoOrder} onClose={() => setCronoOrder(null)} onSaved={() => { setCronoOrder(null); fetchData(); }} />
     </div>
-  );
-};
-
-// --- CRONOGRAMA MODAL ---
-const CronogramaModal = ({ order, onClose, onSaved }) => {
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [ordenData, setOrdenData] = useState(null);
-  const [form, setForm] = useState({
-    tipoContratacion: "ASP BIENES Y SERVICIOS",
-    sistemaContratacion: "SUMA ALZADA",
-    condicionInicio: "DÍA SIGUIENTE DE PERFECCIONADO EL CONTRATO",
-    fechaPerfeccionamiento: "",
-    plazo: 30,
-    fechaInicio: "",
-    fechaFin: "",
-    totalArmadas: 1,
-    armadaInicial: 1,
-    tipoServicio: "MANTENIMIENTO",
-    tipoRegistro: "REGISTRO POR IMPORTES",
-  });
-  const [armadas, setArmadas] = useState([]);
-
-  useEffect(() => {
-    if (!order) return;
-    setLoading(true);
-    api(`/ordenes/${order.id}/cronograma`)
-      .then(r => {
-        setOrdenData(r.orden);
-        if (r.armadas && r.armadas.length > 0) {
-          setArmadas(r.armadas);
-          setForm(f => ({
-            ...f,
-            tipoContratacion: r.orden.TIPO_CONTRATACION || f.tipoContratacion,
-            sistemaContratacion: r.orden.SISTEMA_CONTRATACION || f.sistemaContratacion,
-            condicionInicio: r.orden.CONDICION_INICIO || f.condicionInicio,
-            fechaPerfeccionamiento: r.orden.FECHA_PERFECCIONAMIENTO || "",
-            plazo: r.orden.PLAZO_EJECUCION || 30,
-            fechaInicio: r.orden.FECHA_INICIO || "",
-            fechaFin: r.orden.FECHA_FIN || "",
-            totalArmadas: r.orden.TOTAL_ARMADAS || 1,
-            armadaInicial: r.orden.ARMADA_INICIAL || 1,
-            tipoServicio: r.orden.TIPO_SERVICIO || f.tipoServicio,
-            tipoRegistro: r.orden.TIPO_REGISTRO || f.tipoRegistro,
-          }));
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [order]);
-
-  const updateForm = (key, val) => setForm(f => ({ ...f, [key]: val }));
-
-  // Calcular armadas automáticamente
-  const calcularArmadas = () => {
-    const n = parseInt(form.totalArmadas) || 1;
-    const plazoTotal = parseInt(form.plazo) || 30;
-    const plazoPorArmada = Math.floor(plazoTotal / n);
-    const monto = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : 0;
-    const montoPorArmada = Math.round((monto / n) * 100) / 100;
-    const porcentaje = Math.round((100 / n) * 100) / 100;
-
-    // Parse fecha inicio
-    let fechaBase = null;
-    if (form.fechaInicio) {
-      const p = form.fechaInicio.split('/');
-      if (p.length === 3) fechaBase = new Date(p[2], p[1] - 1, p[0]);
-    }
-
-    const nuevasArmadas = [];
-    for (let i = 0; i < n; i++) {
-      let fi = "", ff = "";
-      if (fechaBase) {
-        const inicio = new Date(fechaBase);
-        inicio.setDate(inicio.getDate() + (i * plazoPorArmada));
-        const fin = new Date(inicio);
-        fin.setDate(fin.getDate() + plazoPorArmada - 1);
-        fi = `${String(inicio.getDate()).padStart(2,'0')}/${String(inicio.getMonth()+1).padStart(2,'0')}/${inicio.getFullYear()}`;
-        ff = `${String(fin.getDate()).padStart(2,'0')}/${String(fin.getMonth()+1).padStart(2,'0')}/${fin.getFullYear()}`;
-      }
-      nuevasArmadas.push({
-        cuota: i + parseInt(form.armadaInicial || 1),
-        plazo: plazoPorArmada,
-        fechaInicio: fi,
-        fechaFin: ff,
-        porcentaje: i === n - 1 ? Math.round((100 - porcentaje * (n - 1)) * 100) / 100 : porcentaje,
-        montoArmada: i === n - 1 ? Math.round((monto - montoPorArmada * (n - 1)) * 100) / 100 : montoPorArmada,
-      });
-    }
-    setArmadas(nuevasArmadas);
-  };
-
-  useEffect(() => {
-    if (ordenData && form.fechaInicio && form.totalArmadas) calcularArmadas();
-  }, [form.totalArmadas, form.plazo, form.fechaInicio, form.armadaInicial, ordenData]);
-
-  // Auto-calcular fecha fin cuando cambia fecha inicio y plazo
-  useEffect(() => {
-    if (form.fechaInicio && form.plazo) {
-      const p = form.fechaInicio.split('/');
-      if (p.length === 3) {
-        const d = new Date(p[2], p[1] - 1, p[0]);
-        d.setDate(d.getDate() + parseInt(form.plazo) - 1);
-        const ff = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-        setForm(f => ({ ...f, fechaFin: ff }));
-      }
-    }
-  }, [form.fechaInicio, form.plazo]);
-
-  const handleSave = async () => {
-    if (!form.fechaPerfeccionamiento || !form.fechaInicio) {
-      alert("Complete los campos obligatorios: Fecha Perfeccionamiento y Fecha Inicio");
-      return;
-    }
-    setSaving(true);
-    try {
-      await api(`/ordenes/${order.id}/cronograma`, {
-        method: "POST",
-        body: JSON.stringify({ ...form, armadas }),
-      });
-      alert("Cronograma registrado exitosamente.");
-      onSaved();
-    } catch (err) {
-      alert("Error al guardar: " + err.message);
-    } finally { setSaving(false); }
-  };
-
-  if (!order) return null;
-
-  const S = { label: { fontSize:10, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:4 },
-    input: { width:"100%", padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box" },
-    select: { width:"100%", padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box" } };
-
-  return (
-    <Modal open={!!order} onClose={onClose} title="Registro de Cronograma" subtitle={`Orden ${order.nOrden} - ${order.tipoBien === "B" ? "BIEN" : "SERVICIO"}`}>
-      {loading ? <div style={{ textAlign:"center", padding:40 }}>⏳ Cargando...</div> : (
-        <div>
-          {/* DETALLES DE LA ORDEN */}
-          <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", marginBottom:8, borderBottom:"2px solid #2c3e6b", paddingBottom:4 }}>Detalles de la orden</div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:20, background:"#f8f9fa", padding:12, borderRadius:6 }}>
-            <Field label="Ejecutora" value="001" />
-            <Field label="N° Orden" value={order.nOrden} />
-            <Field label="Fecha Orden" value={order.fecha} />
-            <Field label="Monto" value={`S/ ${fmt(order.monto)}`} />
-            <Field label="RUC" value={order.ruc} />
-            <Field label="Proveedor" value={order.proveedor} />
-            <Field label="Exp. SIAF" value={order.expSiaf} />
-            <Field label="Concepto" value={order.concepto} />
-            <Field label="Especialista" value={order.usuarioSiga} />
-          </div>
-
-          {/* DATOS DEL CRONOGRAMA */}
-          <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", marginBottom:8, borderBottom:"2px solid #2c3e6b", paddingBottom:4 }}>Datos del Cronograma</div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:12 }}>
-            <div style={{ flex:"1 1 180px" }}>
-              <label style={S.label}>Tipo Contratación (*)</label>
-              <select style={S.select} value={form.tipoContratacion} onChange={e => updateForm("tipoContratacion", e.target.value)}>
-                <option>ASP BIENES Y SERVICIOS</option><option>TERCEROS</option><option>OTROS - DIFERENTE A ASP</option><option>ACUERDO MARCO - BIENES</option><option>ACUERDO MARCO - SERVICIOS</option>
-              </select>
-            </div>
-            <div style={{ flex:"1 1 150px" }}>
-              <label style={S.label}>Sistema Contratación (*)</label>
-              <select style={S.select} value={form.sistemaContratacion} onChange={e => updateForm("sistemaContratacion", e.target.value)}>
-                <option>SUMA ALZADA</option><option>PRECIOS UNITARIOS</option><option>TARIFAS</option><option>MIXTO</option>
-              </select>
-            </div>
-            <div style={{ flex:"1 1 280px" }}>
-              <label style={S.label}>Condición de Inicio (*)</label>
-              <select style={S.select} value={form.condicionInicio} onChange={e => updateForm("condicionInicio", e.target.value)}>
-                <option>DÍA SIGUIENTE DE PERFECCIONADO EL CONTRATO</option>
-                <option>DÍA SIGUIENTE DE LA NOTIFICACIÓN DE LA ORDEN</option>
-                <option>DESDE LA FECHA DE SUSCRIPCIÓN DEL CONTRATO</option>
-              </select>
-            </div>
-          </div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:12 }}>
-            <div style={{ flex:"1 1 140px" }}>
-              <label style={S.label}>F. Perfecc/Notifica/Acta (*)</label>
-              <input style={S.input} value={form.fechaPerfeccionamiento} onChange={e => updateForm("fechaPerfeccionamiento", e.target.value)} placeholder="dd/mm/yyyy" />
-            </div>
-            <div style={{ flex:"0 0 70px" }}>
-              <label style={S.label}>Plazo</label>
-              <input style={S.input} type="number" value={form.plazo} onChange={e => updateForm("plazo", e.target.value)} />
-            </div>
-            <div style={{ flex:"1 1 120px" }}>
-              <label style={S.label}>Fecha Inicio (*)</label>
-              <input style={S.input} value={form.fechaInicio} onChange={e => updateForm("fechaInicio", e.target.value)} placeholder="dd/mm/yyyy" />
-            </div>
-            <div style={{ flex:"1 1 120px" }}>
-              <label style={S.label}>Fecha Fin (*)</label>
-              <input value={form.fechaFin} readOnly style={{ ...S.input, background:"#f0f0f0" }} />
-            </div>
-            <div style={{ flex:"0 0 90px" }}>
-              <label style={S.label}>Total Armadas (*)</label>
-              <input style={S.input} type="number" min="1" value={form.totalArmadas} onChange={e => updateForm("totalArmadas", e.target.value)} />
-            </div>
-          </div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:16 }}>
-            <div style={{ flex:"0 0 90px" }}>
-              <label style={S.label}>Armada Inicial (*)</label>
-              <input style={S.input} type="number" min="1" value={form.armadaInicial} onChange={e => updateForm("armadaInicial", e.target.value)} />
-            </div>
-            <div style={{ flex:"1 1 150px" }}>
-              <label style={S.label}>Tipo Servicio (*)</label>
-              <select style={S.select} value={form.tipoServicio} onChange={e => updateForm("tipoServicio", e.target.value)}>
-                <option>MANTENIMIENTO</option><option>DEFENSA LEGAL</option><option>CONSULTORÍA</option><option>SERVICIO EN GENERAL</option><option>SUMINISTRO</option>
-              </select>
-            </div>
-            <div style={{ flex:"1 1 150px" }}>
-              <label style={S.label}>Tipo Registro (*)</label>
-              <select style={S.select} value={form.tipoRegistro} onChange={e => updateForm("tipoRegistro", e.target.value)}>
-                <option>REGISTRO POR IMPORTES</option><option>REGISTRO POR PORCENTAJE</option>
-              </select>
-            </div>
-          </div>
-
-          {/* CUOTAS POR PAGAR */}
-          <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", marginBottom:8, borderBottom:"2px solid #2c3e6b", paddingBottom:4 }}>Cuotas por pagar</div>
-          <div style={{ overflowX:"auto", marginBottom:12 }}>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-              <thead>
-                <tr style={{ background:"#ecf0f1" }}>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>#</th>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>ARMADA</th>
-                  <th style={{ padding:8, border:"1px solid #ddd", background:"#27ae60", color:"#fff" }}>PLAZO</th>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>FECHA INICIO</th>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>FECHA FIN</th>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>PORCENTAJE</th>
-                  <th style={{ padding:8, border:"1px solid #ddd" }}>MONTO ARMADA (S/)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {armadas.map((a, i) => (
-                  <tr key={i}>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"center" }}>{i + 1}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"center" }}>{String(a.cuota).padStart(3, '0')}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"center", background:"#d5f5e3" }}>{a.plazo}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"center" }}>{a.fechaInicio}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"center" }}>{a.fechaFin}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"right" }}>{Number(a.porcentaje).toFixed(2)}</td>
-                    <td style={{ padding:6, border:"1px solid #ddd", textAlign:"right", background:"#d5f5e3", fontWeight:700 }}>{fmt(a.montoArmada)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:8, marginBottom:20 }}>
-            <span style={{ fontWeight:700, fontSize:13 }}>MONTO TOTAL ARMADAS</span>
-            <span style={{ fontWeight:700 }}>S/</span>
-            <span style={{ fontWeight:700, fontSize:16, background:"#f5f6fa", padding:"4px 12px", borderRadius:4, border:"1px solid #ddd" }}>
-              {fmt(armadas.reduce((s, a) => s + (parseFloat(a.montoArmada) || 0), 0))}
-            </span>
-          </div>
-
-          {/* BOTONES */}
-          <div style={{ display:"flex", justifyContent:"flex-end", gap:10, borderTop:"1px solid #eee", paddingTop:16 }}>
-            <button onClick={onClose} style={{ padding:"10px 24px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
-            <button onClick={handleSave} disabled={saving}
-              style={{ padding:"10px 24px", background: saving ? "#95a5a6" : "#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: saving ? "wait" : "pointer", fontSize:13, fontWeight:700 }}>
-              {saving ? "⏳ Guardando..." : "✓ Guardar Cronograma"}
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
   );
 };
 
