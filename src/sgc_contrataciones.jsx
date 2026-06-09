@@ -135,42 +135,56 @@ const FilterBar = ({ filters, values, onChange, onClear }) => (
 );
 
 const DataTable = ({ columns, data, onRowClick, actions }) => (
-  <div style={{ overflowX:"auto", border:"1px solid #ddd", borderRadius:6 }}>
-    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+  <div style={{ border:"1px solid #ddd", borderRadius:6, overflow:"hidden" }}>
+    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+      <colgroup>
+        <col style={{ width:36 }} />
+        {columns.map((col, i) => <col key={i} style={{ width: col.width || "auto" }} />)}
+        {actions && <col style={{ width:80 }} />}
+      </colgroup>
       <thead>
         <tr style={{ background:"linear-gradient(180deg,#ecf0f1,#dfe6e9)" }}>
-          <th style={{ padding:"10px 8px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign:"center" }}>#</th>
+          <th style={{ padding:"10px 6px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign:"center" }}>#</th>
           {columns.map((col, i) => (
-            <th key={i} style={{ padding:"10px 8px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign: col.align || "left", whiteSpace:"nowrap" }}>{col.label}</th>
+            <th key={i} style={{ padding:"10px 6px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign: col.align || "left", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{col.label}</th>
           ))}
-          {actions && <th style={{ padding:"10px 8px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign:"center" }}>ACCIONES</th>}
+          {actions && <th style={{ padding:"10px 6px", borderBottom:"2px solid #bdc3c7", fontSize:11, fontWeight:700, color:"#2c3e50", textAlign:"center" }}>ACCIONES</th>}
         </tr>
       </thead>
       <tbody>
-        {data.map((row, idx) => (
-          <tr key={idx} onClick={() => onRowClick && onRowClick(row)}
-            style={{ background: row.estadoCrono === "conCrono" ? "#e8f5e9" : row.estadoCrono === "anulado" ? "#ffebee" : idx % 2 === 0 ? "#fff" : "#f9fafb", cursor: onRowClick ? "pointer" : "default", transition:"background 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#eaf2ff"}
-            onMouseLeave={e => e.currentTarget.style.background = row.estadoCrono === "conCrono" ? "#e8f5e9" : row.estadoCrono === "anulado" ? "#ffebee" : idx % 2 === 0 ? "#fff" : "#f9fafb"}>
-            <td style={{ padding:"8px", textAlign:"center", borderBottom:"1px solid #eee", color:"#7f8c8d" }}>{idx + 1}</td>
-            {columns.map((col, i) => (
-              <td key={i} style={{ padding:"8px", borderBottom:"1px solid #eee", textAlign: col.align || "left", maxWidth: col.maxWidth || "none", overflow:"hidden", textOverflow:"ellipsis",
-                fontWeight: col.key === "monto" ? 600 : 400 }}>
-                {col.format ? col.format(row[col.key], row) : row[col.key] ?? "-"}
-              </td>
-            ))}
-            {actions && (
-              <td style={{ padding:"8px", textAlign:"center", borderBottom:"1px solid #eee" }}>
-                <div style={{ display:"flex", gap:6, justifyContent:"center" }}>
-                  {actions.map((a, ai) => (
-                    <button key={ai} onClick={(e) => { e.stopPropagation(); a.onClick(row); }} title={a.label}
-                      style={{ padding:"4px 8px", background:"#f0f0f0", border:"1px solid #ddd", borderRadius:3, cursor:"pointer", fontSize:13 }}>{a.icon}</button>
-                  ))}
-                </div>
-              </td>
-            )}
-          </tr>
-        ))}
+        {data.map((row, idx) => {
+          const bgBase = row.estadoCrono === "conCrono" ? "#dbeafe" : row.estadoCrono === "anulado" ? "#ffebee" : idx % 2 === 0 ? "#fff" : "#f9fafb";
+          return (
+            <tr key={idx} onClick={() => onRowClick && onRowClick(row)}
+              style={{ background: bgBase, cursor: onRowClick ? "pointer" : "default", transition:"background 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#bfdbfe"}
+              onMouseLeave={e => e.currentTarget.style.background = bgBase}>
+              <td style={{ padding:"7px 6px", textAlign:"center", borderBottom:"1px solid #eee", color:"#7f8c8d", whiteSpace:"nowrap" }}>{idx + 1}</td>
+              {columns.map((col, i) => {
+                const val = col.format ? col.format(row[col.key], row) : (row[col.key] ?? "-");
+                const rawVal = row[col.key];
+                return (
+                  <td key={i} title={typeof rawVal === "string" ? rawVal : undefined}
+                    style={{ padding:"7px 6px", borderBottom:"1px solid #eee", textAlign: col.align || "left",
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                      fontWeight: col.key === "monto" ? 600 : 400 }}>
+                    {val}
+                  </td>
+                );
+              })}
+              {actions && (
+                <td style={{ padding:"7px 6px", textAlign:"center", borderBottom:"1px solid #eee" }}>
+                  <div style={{ display:"flex", gap:4, justifyContent:"center" }}>
+                    {actions.map((a, ai) => (
+                      <button key={ai} onClick={(e) => { e.stopPropagation(); a.onClick(row); }} title={a.label}
+                        style={{ padding:"3px 7px", background:"#f0f0f0", border:"1px solid #ddd", borderRadius:3, cursor:"pointer", fontSize:13 }}>{a.icon}</button>
+                    ))}
+                  </div>
+                </td>
+              )}
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   </div>
@@ -314,17 +328,17 @@ const ActuacionesPage = () => {
   const handleSearch = () => { setPage(1); fetchData(); };
 
   const columns = [
-    { key:"ano", label:"AÑO", align:"center" },
-    { key:"tipoBien", label:"TIPO BIEN", align:"center" },
-    { key:"nOrden", label:"N° ORDEN" },
-    { key:"fecha", label:"FECHA ORDEN", align:"center" },
-    { key:"usuarioSiga", label:"USUARIO SIGA", maxWidth:180 },
-    { key:"expSiaf", label:"EXP. SIAF" },
-    { key:"concepto", label:"CONCEPTO", maxWidth:300 },
-    { key:"proveedor", label:"PROVEEDOR", maxWidth:220 },
-    { key:"monto", label:"MONTO (S/)", align:"right", format: v => fmt(v) },
-    { key:"tipoContratacion", label:"TIPO CONTRATACIÓN" },
-    { key:"nArmadas", label:"N° ARMADAS", align:"center", format: v => v || 0 },
+    { key:"ano",              label:"AÑO",           align:"center", width:44 },
+    { key:"tipoBien",         label:"TIPO",          align:"center", width:44 },
+    { key:"nOrden",           label:"N\u00b0 ORDEN", align:"center", width:100 },
+    { key:"fecha",            label:"FECHA",         align:"center", width:88 },
+    { key:"usuarioSiga",      label:"ESPECIALISTA",  width:148 },
+    { key:"expSiaf",          label:"EXP. SIAF",     align:"center", width:90 },
+    { key:"concepto",         label:"CONCEPTO",      width:200 },
+    { key:"proveedor",        label:"PROVEEDOR",     width:170 },
+    { key:"monto",            label:"MONTO (S/)",    align:"right",  width:96, format: v => fmt(v) },
+    { key:"tipoContratacion", label:"TIPO CONTRAT.", width:130 },
+    { key:"nArmadas",         label:"ARM.",          align:"center", width:46, format: v => v || 0 },
   ];
 
   // Pagination component
@@ -372,7 +386,7 @@ const ActuacionesPage = () => {
         <div style={{ display:"flex", gap:16, alignItems:"center" }}>
           <span>LEYENDA:</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, background:"#fff", border:"1px solid #ccc", display:"inline-block" }}></span> Sin Cronograma</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, background:"#27ae60", display:"inline-block" }}></span> Con Cronograma</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, background:"#3b82f6", display:"inline-block" }}></span> Con Cronograma</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, background:"#e74c3c", display:"inline-block" }}></span> Anulado</span>
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
