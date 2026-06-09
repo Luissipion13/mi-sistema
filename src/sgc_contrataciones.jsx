@@ -56,7 +56,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, expandedMenus, toggleMenu }) => {
     ]},
   ];
   return (
-    <div style={{ width:220, minHeight:"100vh", background:"linear-gradient(180deg,#2c3e6b 0%,#34495e 100%)", color:"#fff", paddingTop:8, flexShrink:0, overflowY:"auto", boxShadow:"2px 0 12px rgba(0,0,0,0.15)" }}>
+    <div style={{ width:190, minHeight:"100vh", background:"linear-gradient(180deg,#2c3e6b 0%,#34495e 100%)", color:"#fff", paddingTop:8, flexShrink:0, overflowY:"auto", boxShadow:"2px 0 12px rgba(0,0,0,0.15)" }}>
       {menuItems.map(item => (
         <div key={item.key}>
           <div onClick={() => item.sub.length ? toggleMenu(item.key) : setActiveMenu(item.key)}
@@ -138,9 +138,9 @@ const DataTable = ({ columns, data, onRowClick, actions }) => (
   <div style={{ border:"1px solid #ddd", borderRadius:6, overflow:"hidden" }}>
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
       <colgroup>
-        <col style={{ width:36 }} />
+        <col style={{ width:"2%" }} />
         {columns.map((col, i) => <col key={i} style={{ width: col.width || "auto" }} />)}
-        {actions && <col style={{ width:80 }} />}
+        {actions && <col style={{ width:"7%" }} />}
       </colgroup>
       <thead>
         <tr style={{ background:"linear-gradient(180deg,#ecf0f1,#dfe6e9)" }}>
@@ -328,17 +328,17 @@ const ActuacionesPage = () => {
   const handleSearch = () => { setPage(1); fetchData(); };
 
   const columns = [
-    { key:"ano",              label:"AÑO",           align:"center", width:44 },
-    { key:"tipoBien",         label:"TIPO",          align:"center", width:44 },
-    { key:"nOrden",           label:"N\u00b0 ORDEN", align:"center", width:100 },
-    { key:"fecha",            label:"FECHA",         align:"center", width:88 },
-    { key:"usuarioSiga",      label:"ESPECIALISTA",  width:148 },
-    { key:"expSiaf",          label:"EXP. SIAF",     align:"center", width:90 },
-    { key:"concepto",         label:"CONCEPTO",      width:200 },
-    { key:"proveedor",        label:"PROVEEDOR",     width:170 },
-    { key:"monto",            label:"MONTO (S/)",    align:"right",  width:96, format: v => fmt(v) },
-    { key:"tipoContratacion", label:"TIPO CONTRAT.", width:130 },
-    { key:"nArmadas",         label:"ARM.",          align:"center", width:46, format: v => v || 0 },
+    { key:"ano",              label:"AÑO",      align:"center", width:"3%" },
+    { key:"tipoBien",         label:"TIPO",     align:"center", width:"3%" },
+    { key:"nOrden",           label:"N° ORDEN", align:"center", width:"8%" },
+    { key:"fecha",            label:"FECHA",    align:"center", width:"7%" },
+    { key:"usuarioSiga",      label:"ESPECIALISTA",             width:"11%" },
+    { key:"expSiaf",          label:"EXP.SIAF", align:"center", width:"6%" },
+    { key:"concepto",         label:"CONCEPTO",                 width:"18%" },
+    { key:"proveedor",        label:"PROVEEDOR",                width:"16%" },
+    { key:"monto",            label:"MONTO(S/)", align:"right", width:"8%", format: v => fmt(v) },
+    { key:"tipoContratacion", label:"CONTRAT.", width:"10%" },
+    { key:"nArmadas",         label:"ARM.",     align:"center", width:"3%", format: v => v || 0 },
   ];
 
   // Pagination component
@@ -888,7 +888,7 @@ export default function SGCApp() {
       </header>
       <div style={{ display:"flex", flex:1 }}>
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} expandedMenus={expandedMenus} toggleMenu={toggleMenu} />
-        <main style={{ flex:1, padding:24, overflowY:"auto", maxHeight:"calc(100vh - 52px)" }}>{renderPage()}</main>
+        <main style={{ flex:1, padding:"16px 12px", overflowY:"auto", maxHeight:"calc(100vh - 52px)", minWidth:0 }}>{renderPage()}</main>
       </div>
     </div>
   );
