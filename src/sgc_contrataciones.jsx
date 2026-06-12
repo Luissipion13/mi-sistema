@@ -554,14 +554,20 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   const updateArmada = (idx, key, val) => {
     setArmadas(prev => {
       const next = prev.map((a, i) => i === idx ? { ...a, [key]: val } : a);
+      const montoTotal = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order.monto) || 0;
       // Si cambia monto, recalcular porcentaje
       if (key === "montoArmada") {
-        const montoTotal = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order.monto) || 0;
         return next.map(a => ({ ...a, porcentaje: montoTotal > 0 ? Math.round((parseFloat(a.montoArmada) / montoTotal * 100) * 100) / 100 : 0 }));
+      }
+      // Si cambia porcentaje, recalcular monto
+      if (key === "porcentaje") {
+        return next.map(a => ({ ...a, montoArmada: Math.round((parseFloat(a.porcentaje) / 100 * montoTotal) * 100) / 100 }));
       }
       return next;
     });
   };
+
+  const esPorPorcentaje = form.tipoRegistro === "REGISTRO POR PORCENTAJE";
 
   const montoTotal = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order?.monto) || 0;
   const montoAsignado = armadas.reduce((s, a) => s + (parseFloat(a.montoArmada) || 0), 0);
@@ -711,8 +717,8 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                     <th style={{ padding:"7px 8px", border:"1px solid #ddd", background:"#27ae60", textAlign:"center" }}>PLAZO</th>
                     <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA INICIO</th>
                     <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA FIN</th>
-                    <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>%</th>
-                    <th style={{ padding:"7px 8px", border:"1px solid #ddd", background:"#27ae60", textAlign:"right" }}>MONTO ARMADA (S/)</th>
+                    <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", background: esPorPorcentaje ? "#27ae60" : "#2c3e6b" }}>%</th>
+                    <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", background: esPorPorcentaje ? "#2c3e6b" : "#27ae60" }}>MONTO ARMADA (S/)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -733,11 +739,23 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                         <input value={a.fechaFin} onChange={e => updateArmada(i, "fechaFin", e.target.value)} placeholder="dd/mm/yyyy"
                           style={{ width:90, textAlign:"center", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:12 }} />
                       </td>
-                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"right", color:"#555" }}>{Number(a.porcentaje).toFixed(2)}%</td>
-                      <td style={{ padding:"5px 8px", border:"1px solid #eee", background:"#f0fdf4" }}>
-                        <input type="number" value={a.montoArmada} min="0" step="0.01"
-                          onChange={e => updateArmada(i, "montoArmada", parseFloat(e.target.value) || 0)}
-                          style={{ width:"100%", textAlign:"right", border:"1px solid #ccc", borderRadius:3, padding:"2px 6px", fontSize:12, fontWeight:700, boxSizing:"border-box" }} />
+                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"right", background: esPorPorcentaje ? "#f0fdf4" : "transparent" }}>
+                        {esPorPorcentaje ? (
+                          <input type="number" value={a.porcentaje} min="0" max="100" step="0.01"
+                            onChange={e => updateArmada(i, "porcentaje", parseFloat(e.target.value) || 0)}
+                            style={{ width:"100%", textAlign:"right", border:"1px solid #ccc", borderRadius:3, padding:"2px 6px", fontSize:12, fontWeight:700, boxSizing:"border-box" }} />
+                        ) : (
+                          <span style={{ color:"#555" }}>{Number(a.porcentaje).toFixed(2)}%</span>
+                        )}
+                      </td>
+                      <td style={{ padding:"5px 8px", border:"1px solid #eee", background: esPorPorcentaje ? "transparent" : "#f0fdf4" }}>
+                        {esPorPorcentaje ? (
+                          <span style={{ display:"block", textAlign:"right", color:"#555", fontWeight:700 }}>{fmt(a.montoArmada)}</span>
+                        ) : (
+                          <input type="number" value={a.montoArmada} min="0" step="0.01"
+                            onChange={e => updateArmada(i, "montoArmada", parseFloat(e.target.value) || 0)}
+                            style={{ width:"100%", textAlign:"right", border:"1px solid #ccc", borderRadius:3, padding:"2px 6px", fontSize:12, fontWeight:700, boxSizing:"border-box" }} />
+                        )}
                       </td>
                     </tr>
                   ))}
