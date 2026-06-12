@@ -537,15 +537,16 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
     const nuevas = [];
     for (let i = 0; i < n; i++) {
       const isLast = i === n - 1;
+      const plazoArmada = isLast ? (plazoTotal - plazoPorArmada * (n - 1)) : plazoPorArmada;
       const montoArmada = isLast ? Math.round((montoTotal - base * (n - 1)) * 100) / 100 : base;
       const porcentaje = isLast ? Math.round((100 - pctBase * (n - 1)) * 100) / 100 : pctBase;
       let fi = "", ff = "";
       if (fechaBase) {
         const ini = new Date(fechaBase); ini.setDate(ini.getDate() + i * plazoPorArmada);
-        const fin = new Date(ini); fin.setDate(fin.getDate() + plazoPorArmada - 1);
+        const fin = new Date(ini); fin.setDate(fin.getDate() + plazoArmada - 1);
         fi = toStr(ini); ff = toStr(fin);
       }
-      nuevas.push({ cuota: i + parseInt(form.armadaInicial || 1), plazo: plazoPorArmada, fechaInicio: fi, fechaFin: ff, porcentaje, montoArmada });
+      nuevas.push({ cuota: i + parseInt(form.armadaInicial || 1), plazo: plazoArmada, fechaInicio: fi, fechaFin: ff, porcentaje, montoArmada });
     }
     setArmadas(nuevas);
   };
@@ -569,10 +570,11 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
 
   const esPorPorcentaje = form.tipoRegistro === "REGISTRO POR PORCENTAJE";
 
-  // Ajusta la última armada para que la suma cuadre exactamente con el monto/porcentaje total
+  // Ajusta la última armada para que la suma cuadre exactamente con el monto/porcentaje y plazo total
   const ajustarRedondeo = () => {
     if (armadas.length === 0) return;
     const montoT = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order.monto) || 0;
+    const plazoT = parseInt(form.plazo) || 0;
     setArmadas(prev => {
       const next = [...prev];
       const last = next.length - 1;
@@ -585,6 +587,8 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
         const montoAjustado = Math.round((montoT - sumMontoOtros) * 100) / 100;
         next[last] = { ...next[last], montoArmada: montoAjustado, porcentaje: montoT > 0 ? Math.round((montoAjustado / montoT * 100) * 100) / 100 : 0 };
       }
+      const sumPlazoOtros = next.slice(0, last).reduce((s, a) => s + (parseInt(a.plazo) || 0), 0);
+      next[last] = { ...next[last], plazo: plazoT - sumPlazoOtros };
       return next;
     });
   };
@@ -592,6 +596,8 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   const montoTotal = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order?.monto) || 0;
   const montoAsignado = armadas.reduce((s, a) => s + (parseFloat(a.montoArmada) || 0), 0);
   const saldoPendiente = Math.round((montoTotal - montoAsignado) * 100) / 100;
+  const plazoAsignado = armadas.reduce((s, a) => s + (parseInt(a.plazo) || 0), 0);
+  const plazoDiff = (parseInt(form.plazo) || 0) - plazoAsignado;
 
   const handleSave = async () => {
     if (!form.fechaPerfeccionamiento || !form.fechaInicio) {
@@ -604,6 +610,10 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
     }
     if (Math.abs(saldoPendiente) > 0.005) {
       alert(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
+      return;
+    }
+    if (plazoDiff !== 0) {
+      alert(`⚠ No se puede guardar.\n\nLa suma de los plazos de las armadas (${plazoAsignado} días) no coincide con el Plazo registrado (${form.plazo} días).\nDiferencia: ${plazoDiff} día(s).\n\nAjuste el plazo de las armadas hasta que la suma sea igual a ${form.plazo}.`);
       return;
     }
     setSaving(true);
@@ -710,7 +720,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                 style={{ padding:"7px 18px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
                 ⚙️ Generar Armadas
               </button>
-              {armadas.length > 0 && Math.abs(saldoPendiente) > 0.005 && (
+              {armadas.length > 0 && (Math.abs(saldoPendiente) > 0.005 || plazoDiff !== 0) && (
                 <button onClick={ajustarRedondeo} title="Ajusta la última armada para que la suma coincida exactamente con el monto de la orden"
                   style={{ padding:"7px 14px", background:"#e67e22", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
                   ⚖️ Ajustar Redondeo
@@ -723,9 +733,16 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
           <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", marginBottom:6, borderBottom:"2px solid #2c3e6b", paddingBottom:3, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <span>Cuotas por pagar</span>
             {armadas.length > 0 && (
-              <span style={{ fontSize:11, fontWeight:400, color: Math.abs(saldoPendiente) > 0.005 ? "#e74c3c" : "#27ae60" }}>
-                Monto orden: S/ {fmt(montoTotal)} | Asignado: S/ {fmt(montoAsignado)} |
-                <strong style={{ color: Math.abs(saldoPendiente) > 0.005 ? "#e74c3c" : "#27ae60" }}> Saldo: S/ {fmt(saldoPendiente)}</strong>
+              <span style={{ fontSize:11, fontWeight:400 }}>
+                <span style={{ color: plazoDiff !== 0 ? "#e74c3c" : "#27ae60" }}>
+                  Plazo: {form.plazo} días | Asignado: {plazoAsignado} días
+                  {plazoDiff !== 0 && <strong> (Diferencia: {plazoDiff})</strong>}
+                </span>
+                <span style={{ margin:"0 8px", color:"#ccc" }}>|</span>
+                <span style={{ color: Math.abs(saldoPendiente) > 0.005 ? "#e74c3c" : "#27ae60" }}>
+                  Monto orden: S/ {fmt(montoTotal)} | Asignado: S/ {fmt(montoAsignado)}
+                  {Math.abs(saldoPendiente) > 0.005 && <strong> (Saldo: S/ {fmt(saldoPendiente)})</strong>}
+                </span>
               </span>
             )}
           </div>
