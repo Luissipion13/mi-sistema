@@ -9,8 +9,13 @@ const API_URL = window.location.hostname === "localhost"
   : "https://victory-pogo-sash.ngrok-free.dev/api";
 
 const api = async (endpoint, options = {}) => {
+  const token = localStorage.getItem("sgc_token");
   const res = await fetch(`${API_URL}${endpoint}`, {
-    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    },
     ...options,
   });
   const data = await res.json();
@@ -826,11 +831,23 @@ const LoginPage = ({ onLogin }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
     if (!usuario.trim() || !contrasena.trim()) { setError("Ingrese su usuario y contraseña"); return; }
     setLoading(true);
-    setTimeout(() => { setLoading(false); onLogin({ nombre: usuario.toUpperCase(), rol: "ESPECIALISTA DE ABASTECIMIENTO" }); }, 800);
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        body: JSON.stringify({ usuario: usuario.trim(), contrasena: contrasena.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Usuario o contraseña incorrectos."); return; }
+      localStorage.setItem("sgc_token", data.token);
+      onLogin(data.user);
+    } catch (err) {
+      setError("No se pudo conectar al servidor. Verifique que el backend esté activo.");
+    } finally { setLoading(false); }
   };
 
   const handleKeyDown = (e) => { if (e.key === "Enter") handleLogin(); };
@@ -915,7 +932,7 @@ export default function SGCApp() {
   const [expandedMenus, setExpandedMenus] = useState({ contratoMenor: true });
 
   const toggleMenu = useCallback((key) => { setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] })); }, []);
-  const handleLogout = () => { setUser(null); setActiveMenu("inicio"); };
+  const handleLogout = () => { localStorage.removeItem("sgc_token"); setUser(null); setActiveMenu("inicio"); };
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
