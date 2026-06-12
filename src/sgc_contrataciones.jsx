@@ -888,13 +888,13 @@ const LoginPage = ({ onLogin }) => {
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:11, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:6 }}>Usuario</label>
             <input type="text" value={usuario} onChange={e => setUsuario(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ingrese su usuario"
-              style={{ width:"100%", padding:"12px 14px", border:"2px solid #e8e8e8", borderRadius:10, fontSize:13.5, outline:"none", background:"#fafbfc", boxSizing:"border-box" }} />
+              style={{ width:"100%", padding:"12px 14px", border:"2px solid #e8e8e8", borderRadius:10, fontSize:13.5, outline:"none", background:"#fafbfc", boxSizing:"border-box", color:"#2c3e50" }} />
           </div>
           <div style={{ marginBottom:28 }}>
             <label style={{ fontSize:11, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:6 }}>Contraseña</label>
             <div style={{ position:"relative" }}>
               <input type={showPassword ? "text" : "password"} value={contrasena} onChange={e => setContrasena(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ingrese su contraseña"
-                style={{ width:"100%", padding:"12px 42px 12px 14px", border:"2px solid #e8e8e8", borderRadius:10, fontSize:13.5, outline:"none", background:"#fafbfc", boxSizing:"border-box" }} />
+                style={{ width:"100%", padding:"12px 42px 12px 14px", border:"2px solid #e8e8e8", borderRadius:10, fontSize:13.5, outline:"none", background:"#fafbfc", boxSizing:"border-box", color:"#2c3e50" }} />
               <button onClick={() => setShowPassword(!showPassword)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:14, opacity:0.5 }}>
                 {showPassword ? "🙈" : "👁️"}
               </button>
