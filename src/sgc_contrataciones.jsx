@@ -832,21 +832,337 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   );
 };
 
-const ConformidadesPage = () => {
-  const { values, onChange, onClear } = useFilters({});
+// --- CONFORMIDAD MODAL (Registro por armada) ---
+const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    numeroConformidad: "", fechaConformidad: "", fechaEntrega: "",
+    documentoReferencia: "", glosa: "", monto: armada?.montoArmada || 0,
+    diasRetraso: 0, correspondePenalidad: "NO", elaboradoPor: "",
+    nombreResponsable: "", responsable: "",
+  });
+  const [detalles, setDetalles] = useState([
+    { nombreItem: "", unidadMedida: "UND", nombreUnidad: "UNIDAD", cantidadAdquirido: 1, cantidadRecibido: 1, precioUnit: 0, precTot: 0, montoConformidad: 0 }
+  ]);
+  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Calcular días de retraso automáticamente
+  useEffect(() => {
+    if (form.fechaEntrega && armada?.fechaFin) {
+      const p1 = armada.fechaFin.split('/'); const p2 = form.fechaEntrega.split('/');
+      if (p1.length === 3 && p2.length === 3) {
+        const fin = new Date(p1[2], p1[1]-1, p1[0]);
+        const entrega = new Date(p2[2], p2[1]-1, p2[0]);
+        const dias = Math.max(0, Math.round((entrega - fin) / (1000*60*60*24)));
+        upd("diasRetraso", dias);
+        upd("correspondePenalidad", dias > 0 ? "SI" : "NO");
+      }
+    }
+  }, [form.fechaEntrega, armada]);
+
+  const updDetalle = (i, k, v) => {
+    setDetalles(prev => {
+      const next = prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d);
+      if (k === "cantidadRecibido" || k === "precioUnit") {
+        const d = next[i];
+        next[i] = { ...next[i], montoConformidad: Math.round((parseFloat(next[i].cantidadRecibido)||0) * (parseFloat(next[i].precioUnit)||0) * 100)/100 };
+      }
+      return next;
+    });
+  };
+  const addDetalle = () => setDetalles(p => [...p, { nombreItem:"", unidadMedida:"UND", nombreUnidad:"UNIDAD", cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, precTot:0, montoConformidad:0 }]);
+  const removeDetalle = (i) => setDetalles(p => p.filter((_,idx) => idx !== i));
+  const montoTotal = detalles.reduce((s,d) => s + (parseFloat(d.montoConformidad)||0), 0);
+
+  const handleSave = async () => {
+    if (!form.fechaConformidad || !form.fechaEntrega) { alert("Complete Fecha Conformidad y Fecha Entrega"); return; }
+    setSaving(true);
+    try {
+      await api("/conformidades", { method:"POST", body: JSON.stringify({
+        idOrdenArmada: armada.id, secFunc: "0000", idCentroCosto: "",
+        ...form, monto: montoTotal, detalles
+      })});
+      alert("Conformidad registrada exitosamente.");
+      onSaved();
+    } catch(err) { alert("Error: " + err.message); }
+    finally { setSaving(false); }
+  };
+
+  const S = { label:{ fontSize:10, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:3 },
+    input:{ width:"100%", padding:"6px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box", color:"#2c3e50" } };
+
+  return (
+    <Modal open={!!armada} onClose={onClose} title="Registro de Conformidad"
+      subtitle={`Orden ${orden?.NRO_ORDEN} | Armada ${String(armada?.nroArmada||"").padStart(3,"0")} | Vence: ${armada?.fechaFin}`}>
+      <div>
+        {/* Cabecera */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12, background:"#f8f9fa", padding:10, borderRadius:6, fontSize:12 }}>
+          <Field label="Año" value={orden?.ANO_EJE} /><Field label="Tipo" value={orden?.TIPO_BIEN} />
+          <Field label="N° Orden" value={orden?.NRO_ORDEN} /><Field label="Fecha Orden" value={orden?.FECHA_ORDEN} />
+          <Field label="N° Armada" value={String(armada?.nroArmada||"").padStart(3,"0")} />
+          <Field label="Fecha Vencimiento" value={armada?.fechaFin} />
+          <div style={{ flex:"1 1 100%" }}><Field label="Concepto" value={orden?.CONCEPTO} /></div>
+        </div>
+
+        {/* Datos conformidad */}
+        <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Datos de la Conformidad</div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+          <div style={{ flex:"1 1 150px" }}><label style={S.label}>N° Conformidad</label><input style={S.input} value={form.numeroConformidad} onChange={e=>upd("numeroConformidad",e.target.value)} placeholder="Ej: N°1-B-2026-ITP/..." /></div>
+          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Conformidad (*)</label><input style={S.input} value={form.fechaConformidad} onChange={e=>upd("fechaConformidad",e.target.value)} placeholder="dd/mm/yyyy" /></div>
+          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Entrega Producto (*)</label><input style={S.input} value={form.fechaEntrega} onChange={e=>upd("fechaEntrega",e.target.value)} placeholder="dd/mm/yyyy" /></div>
+          <div style={{ flex:"0 0 80px" }}><label style={S.label}>Días Retraso</label><input style={{...S.input, background:"#f0f0f0"}} value={form.diasRetraso} readOnly /></div>
+          <div style={{ flex:"0 0 100px" }}><label style={S.label}>Corresponde Penalidad</label>
+            <select style={S.input} value={form.correspondePenalidad} onChange={e=>upd("correspondePenalidad",e.target.value)}>
+              <option>NO</option><option>SI</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Elaborado por</label><input style={S.input} value={form.elaboradoPor} onChange={e=>upd("elaboradoPor",e.target.value)} /></div>
+          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Nombre Responsable</label><input style={S.input} value={form.nombreResponsable} onChange={e=>upd("nombreResponsable",e.target.value)} /></div>
+          <div style={{ flex:"1 1 150px" }}><label style={S.label}>Doc. Referencia</label><input style={S.input} value={form.documentoReferencia} onChange={e=>upd("documentoReferencia",e.target.value)} /></div>
+        </div>
+        <div style={{ marginBottom:12 }}><label style={S.label}>Nota / Glosa</label>
+          <textarea style={{...S.input, height:60, resize:"vertical"}} value={form.glosa} onChange={e=>upd("glosa",e.target.value)} />
+        </div>
+
+        {/* Items */}
+        <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8, display:"flex", justifyContent:"space-between" }}>
+          <span>Listado de Ítems</span>
+          <button onClick={addDetalle} style={{ fontSize:11, padding:"2px 10px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:3, cursor:"pointer" }}>+ Agregar ítem</button>
+        </div>
+        <div style={{ overflowX:"auto", marginBottom:10 }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+            <thead>
+              <tr style={{ background:"#2c3e6b", color:"#fff" }}>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>#</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>DESCRIPCIÓN ÍTEM</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>U.M.</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>CANT. O/C</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd", background:"#27ae60" }}>CANT. RECIBIDA</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>P. UNIT (S/)</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd", background:"#27ae60" }}>MONTO CONF. (S/)</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {detalles.map((d, i) => (
+                <tr key={i} style={{ background: i%2===0?"#fff":"#f9fafb" }}>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.nombreItem} onChange={e=>updDetalle(i,"nombreItem",e.target.value)} style={{ width:"100%", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.unidadMedida} onChange={e=>updDetalle(i,"unidadMedida",e.target.value)} style={{ width:50, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"center", color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.cantidadAdquirido} onChange={e=>updDetalle(i,"cantidadAdquirido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4" }}><input type="number" value={d.cantidadRecibido} onChange={e=>updDetalle(i,"cantidadRecibido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", fontWeight:700, color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.precioUnit} onChange={e=>updDetalle(i,"precioUnit",e.target.value)} style={{ width:80, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4", fontWeight:700, textAlign:"right" }}>{fmt(d.montoConformidad)}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center" }}>
+                    {detalles.length > 1 && <button onClick={()=>removeDetalle(i)} style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"2px 6px", fontSize:11 }}>✕</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totales */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, padding:"8px 12px", background:"#f8f9fa", borderRadius:6, border:"1px solid #e8e8e8" }}>
+          <div style={{ fontSize:12 }}>
+            <span style={{ fontWeight:700, color:"#2c3e50" }}>Monto Programado Armada: </span>
+            <span style={{ color:"#7f8c8d" }}>S/ {fmt(armada?.montoArmada)}</span>
+          </div>
+          <div style={{ fontSize:14, fontWeight:700 }}>
+            <span style={{ color:"#2c3e50", marginRight:8 }}>MONTO TOTAL CONFORMIDAD</span>
+            <span style={{ color: Math.abs(montoTotal - (armada?.montoArmada||0)) > 0.01 ? "#e67e22" : "#27ae60", background:"#fff", padding:"4px 14px", borderRadius:4, border:`2px solid ${Math.abs(montoTotal - (armada?.montoArmada||0)) > 0.01 ? "#e67e22" : "#27ae60"}` }}>
+              S/ {fmt(montoTotal)}
+            </span>
+          </div>
+        </div>
+
+        {/* Botones */}
+        <div style={{ display:"flex", justifyContent:"flex-end", gap:10, borderTop:"1px solid #eee", paddingTop:14 }}>
+          <button onClick={onClose} style={{ padding:"9px 22px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            style={{ padding:"9px 22px", background: saving?"#95a5a6":"#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: saving?"wait":"pointer", fontSize:13, fontWeight:700 }}>
+            {saving ? "⏳ Guardando..." : "✓ Guardar Conformidad"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// --- DETALLE ORDEN CONFORMIDADES ---
+const ConformidadDetalle = ({ ordenId, onBack }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedArmada, setSelectedArmada] = useState(null);
+
+  const fetchData = () => {
+    setLoading(true);
+    api(`/conformidades/${ordenId}`)
+      .then(setData).catch(console.error).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchData(); }, [ordenId]);
+
+  if (loading) return <div style={{ textAlign:"center", padding:60 }}>⏳ Cargando...</div>;
+  if (!data) return <div style={{ textAlign:"center", padding:60, color:"#e74c3c" }}>Error al cargar datos.</div>;
+
+  const { orden, armadas } = data;
+
   return (
     <div>
-      <h2 style={{ fontSize:15, fontWeight:700, color:"#2c3e50", marginBottom:16, textTransform:"uppercase" }}>Conformidades de Bienes y Servicios – Contratos Menores</h2>
-      <FilterBar values={values} onChange={onChange} onClear={onClear} filters={[
-        { key:"ano", label:"Año", type:"input", width:70, placeholder:"2026" },
-        { key:"tipoBien", label:"Tipo Orden", type:"select", options:["(TODOS)","B","S"] },
-        { key:"nOrden", label:"N° Orden", type:"input", width:110 },
-        { key:"proveedor", label:"Proveedor", type:"input", width:140 },
-      ]} />
-      <div style={{ fontSize:12, fontWeight:600, color:"#2c3e6b", marginBottom:8, background:"#eef2f7", padding:"8px 12px", borderRadius:4 }}>LISTADO</div>
-      <div style={{ textAlign:"center", padding:40, color:"#95a5a6", fontSize:14, border:"1px solid #eee", borderRadius:6 }}>
-        Módulo de conformidades se habilitará cuando se generen cronogramas en las órdenes.
+      <button onClick={onBack} style={{ marginBottom:12, padding:"6px 16px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12 }}>← Retornar</button>
+
+      {/* Cabecera */}
+      <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Detalles de la orden</div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, background:"#f8f9fa", padding:10, borderRadius:6, marginBottom:16, fontSize:12 }}>
+        <Field label="Ejecutora" value={orden.EJECUTORA||"001"} />
+        <Field label="Objeto" value={orden.TIPO_BIEN==="B"?"BIEN":"SERVICIO"} />
+        <Field label="N° Orden" value={orden.NRO_ORDEN} />
+        <Field label="Fecha Orden" value={orden.FECHA_ORDEN} />
+        <Field label="Monto" value={`S/ ${fmt(orden.MONTO_OS)}`} />
+        <Field label="RUC" value={orden.RUC} />
+        <Field label="Proveedor" value={orden.NOMBRE_PROVEEDOR} />
+        <Field label="Exp. SIAF" value={orden.EXPEDIENTE} />
+        <Field label="Tipo Contratación" value={orden.TIPO_CONTRATACION} />
+        <Field label="Fecha Inicio" value={orden.FECHA_INICIO} />
+        <Field label="Fecha Fin" value={orden.FECHA_FIN} />
+        <div style={{ flex:"1 1 100%" }}><Field label="Concepto" value={orden.CONCEPTO} /></div>
       </div>
+
+      {/* Cuotas programadas */}
+      <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Cuotas programadas</div>
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr style={{ background:"linear-gradient(180deg,#ecf0f1,#dfe6e9)" }}>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}></th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>N° ARMADA</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA INICIO</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA FIN</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO PROGRAMADO (S/)</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>N° CONFORMIDAD</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA CONFORMIDAD</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA ENTREGA</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO CONFORMIDAD (S/)</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>ESTADO</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {armadas.map((a, i) => {
+              const tieneConf = !!a.idConformidad;
+              return (
+                <tr key={i} style={{ background: tieneConf ? "#dbeafe" : i%2===0?"#fff":"#f9fafb" }}>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{String(a.nroArmada).padStart(3,"0")}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaInicio}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaFin}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(a.montoArmada)}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.nroConformidad||"-"}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaConformidad||"-"}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaEntrega||"-"}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{a.montoConformidad ? fmt(a.montoConformidad) : "-"}</td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
+                    {tieneConf ? <span style={{ background:"#2c3e6b", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>EMITIDO</span>
+                      : <span style={{ background:"#f39c12", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>PENDIENTE</span>}
+                  </td>
+                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
+                    {!tieneConf && (
+                      <button onClick={() => setSelectedArmada(a)} title="Registrar conformidad"
+                        style={{ background:"#27ae60", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 10px", fontSize:12 }}>
+                        ✓ Registrar
+                      </button>
+                    )}
+                    {tieneConf && <span style={{ color:"#27ae60", fontSize:13 }}>✓</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background:"#ecf0f1", fontWeight:700 }}>
+              <td colSpan={4} style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>TOTAL</td>
+              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(parseFloat(a.montoArmada)||0),0))}</td>
+              <td colSpan={3} style={{ padding:"8px", border:"1px solid #ddd" }}></td>
+              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(parseFloat(a.montoConformidad)||0),0))}</td>
+              <td colSpan={2} style={{ padding:"8px", border:"1px solid #ddd" }}></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {selectedArmada && (
+        <ConformidadModal armada={selectedArmada} orden={orden} onClose={() => setSelectedArmada(null)}
+          onSaved={() => { setSelectedArmada(null); fetchData(); }} />
+      )}
+    </div>
+  );
+};
+
+// --- CONFORMIDADES PAGE ---
+const ConformidadesPage = () => {
+  const { values, onChange, onClear } = useFilters({ ano:"2026" });
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [selectedOrden, setSelectedOrden] = useState(null);
+  const limit = 30;
+
+  const fetchData = async (p = page) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: p, limit, ...Object.fromEntries(Object.entries(values).filter(([,v]) => v && v !== "(TODOS)")) });
+      const res = await api(`/conformidades?${params}`);
+      setData(res.data); setTotal(res.total);
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchData(1); setPage(1); }, []);
+
+  if (selectedOrden) return <ConformidadDetalle ordenId={selectedOrden} onBack={() => { setSelectedOrden(null); fetchData(); }} />;
+
+  const columns = [
+    { key:"ano",      label:"AÑO",       align:"center", width:"4%" },
+    { key:"tipoBien", label:"TIPO",      align:"center", width:"4%" },
+    { key:"nOrden",   label:"N° ORDEN",  align:"center", width:"9%" },
+    { key:"fecha",    label:"FECHA",     align:"center", width:"8%" },
+    { key:"concepto", label:"CONCEPTO",  width:"22%" },
+    { key:"proveedor",label:"PROVEEDOR", width:"18%" },
+    { key:"monto",    label:"MONTO (S/)", align:"right", width:"8%", format: v => fmt(v) },
+    { key:"totalArmadas", label:"ARM.", align:"center", width:"4%" },
+    { key:"fechaInicio", label:"F. INICIO", align:"center", width:"8%" },
+    { key:"fechaFin",    label:"F. FIN",   align:"center", width:"8%" },
+  ];
+
+  return (
+    <div>
+      <h2 style={{ fontSize:15, fontWeight:700, color:"#2c3e50", marginBottom:12, textTransform:"uppercase" }}>Conformidades de Bienes y Servicios – Contratos Menores</h2>
+      <FilterBar values={values} onChange={onChange} onClear={() => { onClear(); }} filters={[
+        { key:"ano",      label:"Año",       type:"input",  width:70, placeholder:"2026" },
+        { key:"tipoBien", label:"Tipo Orden", type:"select", options:["(TODOS)","B","S"] },
+        { key:"nOrden",   label:"N° Orden",  type:"input",  width:110 },
+        { key:"ruc",      label:"RUC",       type:"input",  width:110 },
+        { key:"proveedor",label:"Proveedor", type:"input",  width:160 },
+        { key:"expSiaf",  label:"N° Exp. SIAF", type:"input", width:110 },
+      ]} onSearch={() => { setPage(1); fetchData(1); }} />
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#2c3e6b", background:"#eef2f7", padding:"6px 12px", borderRadius:4 }}>
+          LISTADO — {total} registro(s) con cronograma
+        </div>
+      </div>
+
+      {loading ? <div style={{ textAlign:"center", padding:40 }}>⏳ Cargando...</div> : (
+        <>
+          <DataTable columns={columns} data={data} onRowClick={row => setSelectedOrden(row.id)}
+            actions={[{ icon:"🔍", label:"Ver detalle", onClick: row => setSelectedOrden(row.id) }]} />
+          <Pagination page={page} totalPages={Math.ceil(total/limit)} onPageChange={p => { setPage(p); fetchData(p); }} />
+        </>
+      )}
     </div>
   );
 };
