@@ -95,7 +95,7 @@ const StatCard = ({ title, value, subtitle, color, onClick }) => (
     onMouseLeave={e => e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.06)"}>
     <div style={{ background:color, color:"#fff", padding:"10px 16px", fontSize:11.5, fontWeight:700, textAlign:"center", letterSpacing:0.8, textTransform:"uppercase" }}>{title}</div>
     <div style={{ padding:"18px 16px", textAlign:"center" }}>
-      <div style={{ fontSize:32, fontWeight:700, color:"#2c3e50" }}>{value}</div>
+      <div style={{ fontSize:32, fontWeight:700, color:"#2c3e50", background:"#fff" }}>{value}</div>
       <div style={{ fontSize:12, color:"#7f8c8d", marginTop:2 }}>{subtitle}</div>
     </div>
   </div>
@@ -809,7 +809,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
           )}
 
           <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:12, marginBottom:16, padding:"8px 12px", background:"#f8f9fa", borderRadius:6, border:"1px solid #e8e8e8" }}>
-            <span style={{ fontSize:12, fontWeight:700, color:"#2c3e50" }}>MONTO TOTAL ARMADAS</span>
+            <span style={{ fontSize:12, fontWeight:700, color:"#2c3e50", background:"#fff" }}>MONTO TOTAL ARMADAS</span>
             <span style={{ fontSize:16, fontWeight:700, color: Math.abs(saldoPendiente) > 0.005 ? "#e74c3c" : "#27ae60", background:"#fff", padding:"4px 14px", borderRadius:4, border:`2px solid ${Math.abs(saldoPendiente) > 0.005 ? "#e74c3c" : "#27ae60"}` }}>
               S/ {fmt(montoAsignado)}
             </span>
@@ -889,7 +889,7 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
   };
 
   const S = { label:{ fontSize:10, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:3 },
-    input:{ width:"100%", padding:"6px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box", color:"#2c3e50" } };
+    input:{ width:"100%", padding:"6px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box", color:"#2c3e50", background:"#fff" } };
 
   return (
     <Modal open={!!armada} onClose={onClose} title="Registro de Conformidad"
@@ -949,11 +949,11 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
               {detalles.map((d, i) => (
                 <tr key={i} style={{ background: i%2===0?"#fff":"#f9fafb" }}>
                   <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.nombreItem} onChange={e=>updDetalle(i,"nombreItem",e.target.value)} style={{ width:"100%", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.nombreItem} onChange={e=>updDetalle(i,"nombreItem",e.target.value)} style={{ width:"100%", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, color:"#2c3e50", background:"#fff" }} /></td>
                   <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.unidadMedida} onChange={e=>updDetalle(i,"unidadMedida",e.target.value)} style={{ width:50, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"center", color:"#2c3e50" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.cantidadAdquirido} onChange={e=>updDetalle(i,"cantidadAdquirido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4" }}><input type="number" value={d.cantidadRecibido} onChange={e=>updDetalle(i,"cantidadRecibido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", fontWeight:700, color:"#2c3e50" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.precioUnit} onChange={e=>updDetalle(i,"precioUnit",e.target.value)} style={{ width:80, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.cantidadAdquirido} onChange={e=>updDetalle(i,"cantidadAdquirido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50", background:"#fff" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4" }}><input type="number" value={d.cantidadRecibido} onChange={e=>updDetalle(i,"cantidadRecibido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", fontWeight:700, color:"#2c3e50", background:"#fff" }} /></td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.precioUnit} onChange={e=>updDetalle(i,"precioUnit",e.target.value)} style={{ width:80, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50", background:"#fff" }} /></td>
                   <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4", fontWeight:700, textAlign:"right" }}>{fmt(d.montoConformidad)}</td>
                   <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center" }}>
                     {detalles.length > 1 && <button onClick={()=>removeDetalle(i)} style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"2px 6px", fontSize:11 }}>✕</button>}
@@ -967,7 +967,7 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
         {/* Totales */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, padding:"8px 12px", background:"#f8f9fa", borderRadius:6, border:"1px solid #e8e8e8" }}>
           <div style={{ fontSize:12 }}>
-            <span style={{ fontWeight:700, color:"#2c3e50" }}>Monto Programado Armada: </span>
+            <span style={{ fontWeight:700, color:"#2c3e50", background:"#fff" }}>Monto Programado Armada: </span>
             <span style={{ color:"#7f8c8d" }}>S/ {fmt(armada?.montoArmada)}</span>
           </div>
           <div style={{ fontSize:14, fontWeight:700 }}>
