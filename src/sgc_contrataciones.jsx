@@ -1160,7 +1160,13 @@ const ConformidadesPage = () => {
         <>
           <DataTable columns={columns} data={data} onRowClick={row => setSelectedOrden(row.id)}
             actions={[{ icon:"🔍", label:"Ver detalle", onClick: row => setSelectedOrden(row.id) }]} />
-          <Pagination page={page} totalPages={Math.ceil(total/limit)} onPageChange={p => { setPage(p); fetchData(p); }} />
+          <div style={{ display:"flex", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12 }}>
+            <button onClick={() => { setPage(p => Math.max(1,p-1)); fetchData(Math.max(1,page-1)); }} disabled={page<=1}
+              style={{ padding:"6px 12px", border:"1px solid #ccc", borderRadius:4, cursor:page<=1?"default":"pointer", background:page<=1?"#f0f0f0":"#fff" }}>◀ Anterior</button>
+            <span style={{ padding:"6px 12px" }}>Página {page} de {Math.ceil(total/limit)}</span>
+            <button onClick={() => { setPage(p => p+1); fetchData(page+1); }} disabled={page>=Math.ceil(total/limit)}
+              style={{ padding:"6px 12px", border:"1px solid #ccc", borderRadius:4, cursor:page>=Math.ceil(total/limit)?"default":"pointer", background:page>=Math.ceil(total/limit)?"#f0f0f0":"#fff" }}>Siguiente ▶</button>
+          </div>
         </>
       )}
     </div>
