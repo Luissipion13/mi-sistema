@@ -835,8 +835,9 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
 // --- CONFORMIDAD MODAL (Registro por armada) ---
 const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
+  const [centroCostoSel, setCentroCostoSel] = useState(null); // { idCentroCosto, nombreCentroCosto }
   const [form, setForm] = useState({
-    numeroConformidad: "", fechaConformidad: "", fechaEntrega: "",
+    fechaConformidad: "", fechaEntrega: "",
     documentoReferencia: "", glosa: "", monto: armada?.montoArmada || 0,
     diasRetraso: 0, correspondePenalidad: "NO", elaboradoPor: "",
     nombreResponsable: "", responsable: "",
@@ -845,6 +846,20 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
     { nombreItem: "", unidadMedida: "UND", nombreUnidad: "UNIDAD", cantidadAdquirido: 1, cantidadRecibido: 1, precioUnit: 0, precTot: 0, montoConformidad: 0 }
   ]);
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Centros de costo de la armada (vienen de armada.centrosCosto)
+  const centrosCosto = armada?.centrosCosto || [];
+
+  // Auto-seleccionar si solo hay 1 centro
+  useEffect(() => {
+    if (centrosCosto.length === 1) setCentroCostoSel(centrosCosto[0]);
+    else setCentroCostoSel(null);
+  }, [armada]);
+
+  // Preview del número de conformidad
+  const previewNumero = centroCostoSel && orden
+    ? `N° [auto]-${orden.TIPO_BIEN}-${orden.ANO_EJE}-ITP/${centroCostoSel.nombreCentroCosto}`
+    : "Seleccione un centro de costo...";
 
   // Calcular días de retraso automáticamente
   useEffect(() => {
@@ -875,11 +890,15 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
   const montoTotal = detalles.reduce((s,d) => s + (parseFloat(d.montoConformidad)||0), 0);
 
   const handleSave = async () => {
+    if (!centroCostoSel) { alert("Debe seleccionar un Centro de Costo"); return; }
     if (!form.fechaConformidad || !form.fechaEntrega) { alert("Complete Fecha Conformidad y Fecha Entrega"); return; }
     setSaving(true);
     try {
       await api("/conformidades", { method:"POST", body: JSON.stringify({
-        idOrdenArmada: armada.id, secFunc: "0000", idCentroCosto: "",
+        idOrdenArmada: armada.id,
+        secFunc: "0000",
+        idCentroCosto: centroCostoSel.idCentroCosto,
+        nombreCentroCosto: centroCostoSel.nombreCentroCosto,
         ...form, monto: montoTotal, detalles
       })});
       alert("Conformidad registrada exitosamente.");
@@ -906,12 +925,40 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
 
         {/* Datos conformidad */}
         <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Datos de la Conformidad</div>
+
+        {/* Selector Centro de Costo */}
+        <div style={{ marginBottom:10, background:"#eef2f7", padding:10, borderRadius:6 }}>
+          <label style={S.label}>Centro de Costo (*)</label>
+          {centrosCosto.length === 0 ? (
+            <div style={{ fontSize:12, color:"#e74c3c", padding:"6px 10px", background:"#fff", borderRadius:4, border:"1px solid #fcc" }}>
+              ⚠ No hay centros de costo registrados. Ejecute "Actualizar lista" para sincronizar desde el SIGA.
+            </div>
+          ) : centrosCosto.length === 1 ? (
+            <div style={{ fontSize:12, color:"#27ae60", padding:"6px 10px", background:"#fff", borderRadius:4, border:"1px solid #27ae60" }}>
+              ✓ {centrosCosto[0].nombreCentroCosto} (único centro de costo)
+            </div>
+          ) : (
+            <select style={S.input} value={centroCostoSel?.idCentroCosto || ""} onChange={e => {
+              const sel = centrosCosto.find(c => c.idCentroCosto === e.target.value);
+              setCentroCostoSel(sel || null);
+            }}>
+              <option value="">-- Seleccione --</option>
+              {centrosCosto.map(c => <option key={c.idCentroCosto} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>)}
+            </select>
+          )}
+          {centroCostoSel && (
+            <div style={{ marginTop:6, fontSize:11, color:"#2c3e6b", background:"#dbeafe", padding:"6px 10px", borderRadius:4, fontWeight:600 }}>
+              📄 N° Conformidad: <span style={{ color:"#1e40af" }}>{previewNumero}</span>
+              <span style={{ fontSize:10, color:"#64748b", marginLeft:8 }}>(El correlativo se asignará automáticamente al guardar)</span>
+            </div>
+          )}
+        </div>
+
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-          <div style={{ flex:"1 1 150px" }}><label style={S.label}>N° Conformidad</label><input style={S.input} value={form.numeroConformidad} onChange={e=>upd("numeroConformidad",e.target.value)} placeholder="Ej: N°1-B-2026-ITP/..." /></div>
           <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Conformidad (*)</label><input style={S.input} value={form.fechaConformidad} onChange={e=>upd("fechaConformidad",e.target.value)} placeholder="dd/mm/yyyy" /></div>
           <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Entrega Producto (*)</label><input style={S.input} value={form.fechaEntrega} onChange={e=>upd("fechaEntrega",e.target.value)} placeholder="dd/mm/yyyy" /></div>
           <div style={{ flex:"0 0 80px" }}><label style={S.label}>Días Retraso</label><input style={{...S.input, background:"#f0f0f0"}} value={form.diasRetraso} readOnly /></div>
-          <div style={{ flex:"0 0 100px" }}><label style={S.label}>Corresponde Penalidad</label>
+          <div style={{ flex:"0 0 110px" }}><label style={S.label}>Corresponde Penalidad</label>
             <select style={S.input} value={form.correspondePenalidad} onChange={e=>upd("correspondePenalidad",e.target.value)}>
               <option>NO</option><option>SI</option>
             </select>
