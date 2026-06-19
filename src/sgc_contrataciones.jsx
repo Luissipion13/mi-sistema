@@ -1186,7 +1186,17 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
                         ✓ Registrar
                       </button>
                     )}
-                    {tieneConf && <span style={{ color:"#27ae60", fontSize:13 }}>✓</span>}
+                    {tieneConf && (
+                      <div style={{ display:"flex", gap:6, justifyContent:"center", alignItems:"center" }}>
+                        <span style={{ color:"#27ae60", fontSize:13 }}>✓</span>
+                        <button
+                          onClick={() => window.open(`${API_URL}/conformidades/${a.idConformidad}/pdf`, '_blank')}
+                          title="Descargar PDF"
+                          style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
+                          🖨️
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
