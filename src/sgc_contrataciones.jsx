@@ -321,11 +321,24 @@ const ActuacionesPage = () => {
     if (!confirm("¿Seguro de realizar la actualización automática de los registros?\nEsto puede tomar algunos minutos.\n\nIMPORTANTE: Solo se están migrando las órdenes que cuenten con Expediente SIAF aprobado en el SIGA.")) return;
     setSyncing(true); setSyncResult(null);
     try {
-      const result = await api("/ordenes/sync", { method: "POST" });
+      const token = localStorage.getItem("sgc_token");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutos
+      const res = await fetch(`${API_URL}/ordenes/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Error en la petición");
       setSyncResult(result);
       setPage(1);
       fetchData();
-    } catch (err) { alert("Error al sincronizar: " + err.message); }
+    } catch (err) {
+      if (err.name === 'AbortError') alert("El sync tardó más de 3 minutos. Verifique la consola del servidor.");
+      else alert("Error al sincronizar: " + err.message);
+    }
     finally { setSyncing(false); }
   };
 
