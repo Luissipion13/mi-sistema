@@ -833,7 +833,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
 };
 
 // --- CONFORMIDAD MODAL (Registro por armada) ---
-const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
+const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [centroCostoSel, setCentroCostoSel] = useState(null);
   const [otraArea, setOtraArea] = useState(false);
@@ -847,17 +847,36 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
     diasRetraso: 0, correspondePenalidad: "NO", elaboradoPor: "",
     nombreResponsable: "", responsable: "",
   });
-  const [detalles, setDetalles] = useState([
-    { nombreItem: "", unidadMedida: "UND", nombreUnidad: "UNIDAD", cantidadAdquirido: 1, cantidadRecibido: 1, precioUnit: 0, precTot: 0, montoConformidad: 0 }
-  ]);
+
+  // Ítems precargados desde la orden — solo editar cantidadRecibido
+  const [detalles, setDetalles] = useState([]);
+
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const centrosCosto = armada?.centrosCosto || [];
 
+  // Inicializar al abrir modal
   useEffect(() => {
+    if (!armada) return;
+    // Centro de costo
     if (centrosCosto.length === 1) setCentroCostoSel(centrosCosto[0]);
     else setCentroCostoSel(null);
     setOtraArea(false); setAreaSel(null); setAreaQuery("");
-  }, [armada]);
+
+    // Cargar ítems desde la orden filtrados por centro de costo si corresponde
+    const its = (itemsOrden || []).map(it => ({
+      codigoBien: it.codigoBien || '',
+      nombreItem: it.descripcionItem || '',
+      unidadMedida: 'UND',
+      idCentroCosto: it.idCentroCosto || '',
+      cantidadAdquirido: 1,
+      cantidadRecibido: 1,
+      precioUnit: parseFloat(it.montoOrden) || 0,
+      montoConformidad: parseFloat(it.montoOrden) || 0,
+    }));
+    setDetalles(its.length > 0 ? its : [
+      { codigoBien:'', nombreItem:'', unidadMedida:'UND', idCentroCosto:'', cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, montoConformidad:0 }
+    ]);
+  }, [armada, itemsOrden]);
 
   // Calcular días de retraso automáticamente
   useEffect(() => {
@@ -884,17 +903,15 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
     return () => clearTimeout(t);
   }, [areaQuery, otraArea]);
 
-  const updDetalle = (i, k, v) => {
-    setDetalles(prev => {
-      const next = prev.map((d, idx) => idx === i ? { ...d, [k]: v } : d);
-      if (k === "cantidadRecibido" || k === "precioUnit") {
-        next[i] = { ...next[i], montoConformidad: Math.round((parseFloat(next[i].cantidadRecibido)||0) * (parseFloat(next[i].precioUnit)||0) * 100)/100 };
-      }
-      return next;
-    });
+  // Solo editar cantidad recibida — monto se recalcula
+  const updCantidad = (i, v) => {
+    setDetalles(prev => prev.map((d, idx) => {
+      if (idx !== i) return d;
+      const cant = parseFloat(v) || 0;
+      return { ...d, cantidadRecibido: v, montoConformidad: Math.round(cant * (parseFloat(d.precioUnit)||0) * 100) / 100 };
+    }));
   };
-  const addDetalle = () => setDetalles(p => [...p, { nombreItem:"", unidadMedida:"UND", nombreUnidad:"UNIDAD", cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, precTot:0, montoConformidad:0 }]);
-  const removeDetalle = (i) => setDetalles(p => p.filter((_,idx) => idx !== i));
+
   const montoTotal = detalles.reduce((s,d) => s + (parseFloat(d.montoConformidad)||0), 0);
 
   const previewNumero = centroCostoSel && orden
@@ -1038,36 +1055,35 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
         </div>
 
         {/* Items */}
-        <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8, display:"flex", justifyContent:"space-between" }}>
-          <span>Listado de Ítems</span>
-          <button onClick={addDetalle} style={{ fontSize:11, padding:"2px 10px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:3, cursor:"pointer" }}>+ Agregar ítem</button>
+        <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>
+          Listado de Ítems
+          {detalles.length > 0 && itemsOrden?.length > 0 && <span style={{ fontSize:10, fontWeight:400, color:"#64748b", marginLeft:8 }}>(cargados automáticamente desde la orden)</span>}
         </div>
         <div style={{ overflowX:"auto", marginBottom:10 }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
             <thead>
               <tr style={{ background:"#2c3e6b", color:"#fff" }}>
                 <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>#</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>CÓD. ÍTEM</th>
                 <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>DESCRIPCIÓN ÍTEM</th>
                 <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>U.M.</th>
-                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>CANT. O/C</th>
-                <th style={{ padding:"6px 8px", border:"1px solid #ddd", background:"#27ae60" }}>CANT. RECIBIDA</th>
-                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>P. UNIT (S/)</th>
+                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}>MONTO O/S (S/)</th>
                 <th style={{ padding:"6px 8px", border:"1px solid #ddd", background:"#27ae60" }}>MONTO CONF. (S/)</th>
-                <th style={{ padding:"6px 8px", border:"1px solid #ddd" }}></th>
               </tr>
             </thead>
             <tbody>
               {detalles.map((d, i) => (
                 <tr key={i} style={{ background: i%2===0?"#fff":"#f9fafb" }}>
                   <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.nombreItem} onChange={e=>updDetalle(i,"nombreItem",e.target.value)} style={{ width:"100%", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, color:"#2c3e50", background:"#fff" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input value={d.unidadMedida} onChange={e=>updDetalle(i,"unidadMedida",e.target.value)} style={{ width:50, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"center", color:"#2c3e50" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.cantidadAdquirido} onChange={e=>updDetalle(i,"cantidadAdquirido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50", background:"#fff" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4" }}><input type="number" value={d.cantidadRecibido} onChange={e=>updDetalle(i,"cantidadRecibido",e.target.value)} style={{ width:70, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", fontWeight:700, color:"#2c3e50", background:"#fff" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee" }}><input type="number" value={d.precioUnit} onChange={e=>updDetalle(i,"precioUnit",e.target.value)} style={{ width:80, border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:11, textAlign:"right", color:"#2c3e50", background:"#fff" }} /></td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4", fontWeight:700, textAlign:"right" }}>{fmt(d.montoConformidad)}</td>
-                  <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center" }}>
-                    {detalles.length > 1 && <button onClick={()=>removeDetalle(i)} style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"2px 6px", fontSize:11 }}>✕</button>}
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", fontSize:10, color:"#64748b" }}>{d.codigoBien}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", color:"#2c3e50" }}>{d.nombreItem}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"center" }}>{d.unidadMedida}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", textAlign:"right", color:"#64748b" }}>{fmt(d.precioUnit)}</td>
+                  <td style={{ padding:"4px 6px", border:"1px solid #eee", background:"#f0fdf4" }}>
+                    <input type="number" value={d.montoConformidad}
+                      onChange={e=>{ const v = parseFloat(e.target.value)||0; setDetalles(prev=>prev.map((dd,ii)=>ii===i?{...dd,montoConformidad:v}:dd)); }}
+                      style={{ width:"100%", border:"1px solid #86efac", borderRadius:3, padding:"2px 6px", fontSize:11, textAlign:"right", fontWeight:700, color:"#166534", background:"#fff" }}
+                    />
                   </td>
                 </tr>
               ))}
@@ -1119,7 +1135,7 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
   if (loading) return <div style={{ textAlign:"center", padding:60 }}>⏳ Cargando...</div>;
   if (!data) return <div style={{ textAlign:"center", padding:60, color:"#e74c3c" }}>Error al cargar datos.</div>;
 
-  const { orden, armadas } = data;
+  const { orden, armadas, items } = data;
 
   return (
     <div>
@@ -1215,7 +1231,7 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
       </div>
 
       {selectedArmada && (
-        <ConformidadModal armada={selectedArmada} orden={orden} onClose={() => setSelectedArmada(null)}
+        <ConformidadModal armada={selectedArmada} orden={orden} items={items} onClose={() => setSelectedArmada(null)}
           onSaved={() => { setSelectedArmada(null); fetchData(); }} />
       )}
     </div>
