@@ -878,9 +878,9 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
     if (!otraArea) return;
     const t = setTimeout(() => {
       api(`/areas-usuarias?q=${encodeURIComponent(areaQuery)}`)
-        .then(data => { setAreaOpciones(data); setAreaDropOpen(true); })
+        .then(data => { setAreaOpciones(data); if (data.length > 0) setAreaDropOpen(true); })
         .catch(() => {});
-    }, 250);
+    }, 200);
     return () => clearTimeout(t);
   }, [areaQuery, otraArea]);
 
@@ -974,7 +974,12 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
               style={{ padding:"5px 18px", fontSize:12, borderRadius:4, border:"2px solid", cursor:"pointer",
                 borderColor:!otraArea?"#2563eb":"#ccc", background:!otraArea?"#2563eb":"#fff",
                 color:!otraArea?"#fff":"#333", fontWeight:700 }}>NO</button>
-            <button onClick={()=>setOtraArea(true)}
+            <button onClick={()=>{ 
+                setOtraArea(true);
+                api(`/areas-usuarias?q=`)
+                  .then(data => { setAreaOpciones(data); })
+                  .catch(() => {});
+              }}
               style={{ padding:"5px 18px", fontSize:12, borderRadius:4, border:"2px solid", cursor:"pointer",
                 borderColor:otraArea?"#e67e22":"#ccc", background:otraArea?"#e67e22":"#fff",
                 color:otraArea?"#fff":"#333", fontWeight:700 }}>SÍ</button>
@@ -985,7 +990,11 @@ const ConformidadModal = ({ armada, orden, onClose, onSaved }) => {
               <input style={S.input} value={areaQuery}
                 placeholder="Escriba nombre o sigla (ej: OTI, UA, CITE...)"
                 onChange={e=>{ setAreaQuery(e.target.value); setAreaSel(null); }}
-                onFocus={()=>{ if(areaOpciones.length>0) setAreaDropOpen(true); }}
+                onFocus={()=>{ 
+                  if (areaOpciones.length > 0) setAreaDropOpen(true);
+                  else api(`/areas-usuarias?q=`).then(data=>{ setAreaOpciones(data); setAreaDropOpen(true); }).catch(()=>{});
+                }}
+                onBlur={()=>setTimeout(()=>setAreaDropOpen(false), 200)}
               />
               {areaDropOpen && areaOpciones.length>0 && (
                 <div style={{ position:"absolute", zIndex:999, background:"#fff", border:"1px solid #ccc",
