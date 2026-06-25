@@ -918,21 +918,25 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
       if (centrosCosto.length === 1) setCentroCostoSel(centrosCosto[0]);
       else setCentroCostoSel(null);
       setOtraArea(false); setAreaSel(null); setAreaQuery("");
-      const its = (itemsOrden || []).map(it => ({
-        codigoBien: it.codigoBien || '',
-        nombreItem: it.descripcionItem || '',
-        unidadMedida: 'UND',
-        idCentroCosto: it.idCentroCosto || '',
-        cantidadAdquirido: 1,
-        cantidadRecibido: 1,
-        precioUnit: parseFloat(it.montoOrden) || 0,
-        montoConformidad: parseFloat(it.montoOrden) || 0,
-      }));
-      setDetalles(its.length > 0 ? its : [
-        { codigoBien:'', nombreItem:'', unidadMedida:'UND', idCentroCosto:'', cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, montoConformidad:0 }
-      ]);
+      setDetalles([]); // Se cargarán por el segundo useEffect
     }
-  }, [armada, itemsOrden]);
+  }, [armada]); // Solo depende de armada, no de itemsOrden
+
+  // Cargar ítems de la orden en modo nuevo cuando itemsOrden cambia
+  useEffect(() => {
+    if (!armada || modoEdicion) return; // En modo edición no sobreescribir
+    const its = (itemsOrden || []).map(it => ({
+      codigoBien: it.codigoBien || '',
+      nombreItem: it.descripcionItem || '',
+      unidadMedida: 'UND',
+      idCentroCosto: it.idCentroCosto || '',
+      cantidadAdquirido: 1,
+      cantidadRecibido: 1,
+      precioUnit: parseFloat(it.montoOrden) || 0,
+      montoConformidad: parseFloat(it.montoOrden) || 0,
+    }));
+    if (its.length > 0) setDetalles(its);
+  }, [itemsOrden]);
 
   // Calcular días de retraso automáticamente
   useEffect(() => {
