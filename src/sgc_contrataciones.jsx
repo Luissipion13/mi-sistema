@@ -38,28 +38,38 @@ const Logo = () => (
   </div>
 );
 
-const Sidebar = ({ activeMenu, setActiveMenu, expandedMenus, toggleMenu }) => {
-  const menuItems = [
-    { key:"inicio", label:"Inicio", icon:"🏠", sub:[] },
+const Sidebar = ({ activeMenu, setActiveMenu, expandedMenus, toggleMenu, user }) => {
+  const rol = user?.rol || 'ESPECIALISTA';
+  const esAreaUsuaria = rol === 'AREA_USUARIA';
+  const esAdmin = rol === 'ADMIN';
+
+  const allMenuItems = [
+    { key:"inicio", label:"Inicio", icon:"🏠", sub:[], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
     { key:"contratoMenor", label:"Contrato Menor", icon:"📋", sub:[
-      { key:"actuaciones", label:"Actuaciones Contractuales" },
-      { key:"conformidades", label:"Conformidades" },
-      { key:"pagos", label:"Pagos" },
-      { key:"constancias", label:"Constancia de Orden" },
-    ]},
+      { key:"actuaciones", label:"Actuaciones Contractuales", roles:['ADMIN','ESPECIALISTA'] },
+      { key:"conformidades", label:"Conformidades", roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
+      { key:"pagos", label:"Pagos", roles:['ADMIN','ESPECIALISTA'] },
+      { key:"constancias", label:"Constancia de Orden", roles:['ADMIN','ESPECIALISTA'] },
+    ], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
     { key:"procedimientos", label:"Procedimientos de Selección", icon:"⚙️", sub:[
-      { key:"contratos", label:"Contratos" },
-      { key:"cronogramas", label:"Cronogramas" },
-    ]},
+      { key:"contratos", label:"Contratos", roles:['ADMIN','ESPECIALISTA'] },
+      { key:"cronogramas", label:"Cronogramas", roles:['ADMIN','ESPECIALISTA'] },
+    ], roles:['ADMIN','ESPECIALISTA'] },
     { key:"reportes", label:"Reportes", icon:"📊", sub:[
-      { key:"repOrdenes", label:"Órdenes" },
-      { key:"repConformidades", label:"Conformidades" },
-    ]},
+      { key:"repOrdenes", label:"Órdenes", roles:['ADMIN','ESPECIALISTA'] },
+      { key:"repConformidades", label:"Conformidades", roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
+    ], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
     { key:"mantenimiento", label:"Mantenimiento", icon:"🔧", sub:[
-      { key:"usuarios", label:"Usuarios" },
-      { key:"parametros", label:"Parámetros" },
-    ]},
+      { key:"usuarios", label:"Usuarios", roles:['ADMIN'] },
+      { key:"parametros", label:"Parámetros", roles:['ADMIN'] },
+    ], roles:['ADMIN'] },
   ];
+
+  // Filtrar menús según rol
+  const menuItems = allMenuItems
+    .filter(item => item.roles.includes(rol))
+    .map(item => ({ ...item, sub: item.sub.filter(s => s.roles.includes(rol)) }));
+
   return (
     <div style={{ width:190, minHeight:"100vh", background:"linear-gradient(180deg,#2c3e6b 0%,#34495e 100%)", color:"#fff", paddingTop:8, flexShrink:0, overflowY:"auto", boxShadow:"2px 0 12px rgba(0,0,0,0.15)" }}>
       {menuItems.map(item => (
@@ -1531,9 +1541,18 @@ export default function SGCApp() {
   const [expandedMenus, setExpandedMenus] = useState({ contratoMenor: true });
 
   const toggleMenu = useCallback((key) => { setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] })); }, []);
+  const handleLogin = (userData) => {
+    setUser(userData);
+    // AREA_USUARIA va directo a conformidades
+    if (userData?.rol === 'AREA_USUARIA') {
+      setActiveMenu('conformidades');
+      setExpandedMenus({ contratoMenor: true });
+    }
+  };
+
   const handleLogout = () => { localStorage.removeItem("sgc_token"); setUser(null); setActiveMenu("inicio"); };
 
-  if (!user) return <LoginPage onLogin={setUser} />;
+  if (!user) return <LoginPage onLogin={handleLogin} />;
 
   const renderPage = () => {
     switch(activeMenu) {
@@ -1564,7 +1583,7 @@ export default function SGCApp() {
         </div>
       </header>
       <div style={{ display:"flex", flex:1 }}>
-        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} expandedMenus={expandedMenus} toggleMenu={toggleMenu} />
+        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} expandedMenus={expandedMenus} toggleMenu={toggleMenu} user={user} />
         <main style={{ flex:1, padding:"16px 12px", overflowY:"auto", maxHeight:"calc(100vh - 52px)", minWidth:0 }}>{renderPage()}</main>
       </div>
     </div>
