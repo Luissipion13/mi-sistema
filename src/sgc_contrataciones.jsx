@@ -847,6 +847,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
 
 // --- CONFORMIDAD MODAL (Registro por armada) ---
 const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }) => {
+  const modoEdicion = !!armada?.modoEdicion;
   const [saving, setSaving] = useState(false);
   const [centroCostoSel, setCentroCostoSel] = useState(null);
   const [otraArea, setOtraArea] = useState(false);
@@ -870,25 +871,67 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
   // Inicializar al abrir modal
   useEffect(() => {
     if (!armada) return;
-    // Centro de costo
-    if (centrosCosto.length === 1) setCentroCostoSel(centrosCosto[0]);
-    else setCentroCostoSel(null);
-    setOtraArea(false); setAreaSel(null); setAreaQuery("");
 
-    // Cargar ítems desde la orden filtrados por centro de costo si corresponde
-    const its = (itemsOrden || []).map(it => ({
-      codigoBien: it.codigoBien || '',
-      nombreItem: it.descripcionItem || '',
-      unidadMedida: 'UND',
-      idCentroCosto: it.idCentroCosto || '',
-      cantidadAdquirido: 1,
-      cantidadRecibido: 1,
-      precioUnit: parseFloat(it.montoOrden) || 0,
-      montoConformidad: parseFloat(it.montoOrden) || 0,
-    }));
-    setDetalles(its.length > 0 ? its : [
-      { codigoBien:'', nombreItem:'', unidadMedida:'UND', idCentroCosto:'', cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, montoConformidad:0 }
-    ]);
+    if (modoEdicion && armada.idConformidad) {
+      // Modo edición: cargar datos existentes de la conformidad
+      api(`/conformidades/detalle/${armada.idConformidad}`)
+        .then(data => {
+          const c = data.conformidad;
+          setForm({
+            fechaConformidad: c.fechaConformidad || "",
+            fechaEntrega: c.fechaEntrega || "",
+            documentoReferencia: c.documentoReferencia || "",
+            glosa: c.glosa || "",
+            monto: c.monto || 0,
+            diasRetraso: c.diasRetraso || 0,
+            correspondePenalidad: c.correspondePenalidad || "NO",
+            elaboradoPor: c.elaboradoPor || "",
+            nombreResponsable: c.nombreResponsable || "",
+            responsable: c.responsable || "",
+          });
+          // Preseleccionar centro de costo
+          const cc = centrosCosto.find(x => x.idCentroCosto === c.idCentroCosto);
+          setCentroCostoSel(cc || centrosCosto[0] || null);
+          // Preseleccionar área otra conformidad
+          if (c.areaOtraConformidad) {
+            setOtraArea(true);
+            setAreaSel({ id: c.idAreaOtraConformidad, nombre: c.areaOtraConformidad });
+            setAreaQuery(c.areaOtraConformidad);
+          }
+          // Cargar detalles
+          if (data.detalles?.length > 0) {
+            setDetalles(data.detalles.map(d => ({
+              codigoBien: d.codigoBien || '',
+              nombreItem: d.nombreItem || '',
+              unidadMedida: d.unidadMedida || 'UND',
+              idCentroCosto: '',
+              cantidadAdquirido: d.cantidadAdquirido || 1,
+              cantidadRecibido: d.cantidadRecibido || 1,
+              precioUnit: d.precioUnit || 0,
+              montoConformidad: d.montoConformidad || 0,
+            })));
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Modo nuevo
+      if (centrosCosto.length === 1) setCentroCostoSel(centrosCosto[0]);
+      else setCentroCostoSel(null);
+      setOtraArea(false); setAreaSel(null); setAreaQuery("");
+      const its = (itemsOrden || []).map(it => ({
+        codigoBien: it.codigoBien || '',
+        nombreItem: it.descripcionItem || '',
+        unidadMedida: 'UND',
+        idCentroCosto: it.idCentroCosto || '',
+        cantidadAdquirido: 1,
+        cantidadRecibido: 1,
+        precioUnit: parseFloat(it.montoOrden) || 0,
+        montoConformidad: parseFloat(it.montoOrden) || 0,
+      }));
+      setDetalles(its.length > 0 ? its : [
+        { codigoBien:'', nombreItem:'', unidadMedida:'UND', idCentroCosto:'', cantidadAdquirido:1, cantidadRecibido:1, precioUnit:0, montoConformidad:0 }
+      ]);
+    }
   }, [armada, itemsOrden]);
 
   // Calcular días de retraso automáticamente
@@ -927,9 +970,11 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
 
   const montoTotal = detalles.reduce((s,d) => s + (parseFloat(d.montoConformidad)||0), 0);
 
-  const previewNumero = centroCostoSel && orden
-    ? `N° [auto]-${orden.TIPO_BIEN}-${orden.ANO_EJE}-ITP/${centroCostoSel.nombreCentroCosto}`
-    : "Seleccione un centro de costo...";
+  const previewNumero = modoEdicion
+    ? armada?.nroConformidad || ''
+    : (centroCostoSel && orden
+      ? `N° [auto]-${orden.TIPO_BIEN}-${orden.ANO_EJE}-ITP/${centroCostoSel.nombreCentroCosto}`
+      : "Seleccione un centro de costo...");
 
   const handleSave = async () => {
     if (!centroCostoSel) { alert("Debe seleccionar un Centro de Costo"); return; }
@@ -937,15 +982,26 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
     if (!form.fechaConformidad || !form.fechaEntrega) { alert("Complete Fecha Conformidad y Fecha Entrega"); return; }
     setSaving(true);
     try {
-      await api("/conformidades", { method:"POST", body: JSON.stringify({
-        idOrdenArmada: armada.id, secFunc: "0000",
-        idCentroCosto: centroCostoSel.idCentroCosto,
-        nombreCentroCosto: centroCostoSel.nombreCentroCosto,
-        areaOtraConformidad: otraArea && areaSel ? areaSel.nombre : null,
-        idAreaOtraConformidad: otraArea && areaSel ? areaSel.id : null,
-        ...form, monto: montoTotal, detalles
-      })});
-      alert("Conformidad registrada exitosamente.");
+      if (modoEdicion) {
+        await api(`/conformidades/${armada.idConformidad}`, { method:"PUT", body: JSON.stringify({
+          idCentroCosto: centroCostoSel.idCentroCosto,
+          nombreCentroCosto: centroCostoSel.nombreCentroCosto,
+          areaOtraConformidad: otraArea && areaSel ? areaSel.nombre : null,
+          idAreaOtraConformidad: otraArea && areaSel ? areaSel.id : null,
+          ...form, monto: montoTotal, detalles
+        })});
+        alert("Conformidad actualizada exitosamente.");
+      } else {
+        await api("/conformidades", { method:"POST", body: JSON.stringify({
+          idOrdenArmada: armada.id, secFunc: "0000",
+          idCentroCosto: centroCostoSel.idCentroCosto,
+          nombreCentroCosto: centroCostoSel.nombreCentroCosto,
+          areaOtraConformidad: otraArea && areaSel ? areaSel.nombre : null,
+          idAreaOtraConformidad: otraArea && areaSel ? areaSel.id : null,
+          ...form, monto: montoTotal, detalles
+        })});
+        alert("Conformidad registrada exitosamente.");
+      }
       onSaved();
     } catch(err) { alert("Error: " + err.message); }
     finally { setSaving(false); }
@@ -955,7 +1011,7 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
     input:{ width:"100%", padding:"6px 8px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box", color:"#2c3e50", background:"#fff" } };
 
   return (
-    <Modal open={!!armada} onClose={onClose} title="Registro de Conformidad"
+    <Modal open={!!armada} onClose={onClose} title={modoEdicion ? "✏️ Editar Conformidad" : "Registro de Conformidad"}
       subtitle={`Orden ${orden?.NRO_ORDEN} | Armada ${String(armada?.nroArmada||"").padStart(3,"0")} | Vence: ${armada?.fechaFin}`}>
       <div>
         {/* Cabecera */}
@@ -1123,7 +1179,7 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
           <button onClick={onClose} style={{ padding:"9px 22px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
           <button onClick={handleSave} disabled={saving}
             style={{ padding:"9px 22px", background: saving?"#95a5a6":"#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: saving?"wait":"pointer", fontSize:13, fontWeight:700 }}>
-            {saving ? "⏳ Guardando..." : "✓ Guardar Conformidad"}
+            {saving ? "⏳ Guardando..." : modoEdicion ? "✏️ Actualizar Conformidad" : "✓ Guardar Conformidad"}
           </button>
         </div>
       </div>
@@ -1216,8 +1272,13 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
                       </button>
                     )}
                     {tieneConf && (
-                      <div style={{ display:"flex", gap:6, justifyContent:"center", alignItems:"center" }}>
-                        <span style={{ color:"#27ae60", fontSize:13 }}>✓</span>
+                      <div style={{ display:"flex", gap:4, justifyContent:"center", alignItems:"center" }}>
+                        <button
+                          onClick={() => setSelectedArmada({ ...a, modoEdicion: true })}
+                          title="Editar conformidad"
+                          style={{ background:"#f39c12", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
+                          ✏️
+                        </button>
                         <button
                           onClick={() => window.open(`${API_URL}/conformidades/${a.idConformidad}/pdf`, '_blank')}
                           title="Descargar PDF"
