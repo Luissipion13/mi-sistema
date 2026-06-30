@@ -1661,7 +1661,22 @@ const PagoDetalle = ({ ordenId, onBack }) => {
 
           {/* Botón PDF */}
           <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
-            <button onClick={() => window.open(`${API_URL}/pagos/${proveido.id}/pdf`, "_blank")}
+            <button onClick={async () => {
+              try {
+                const token = localStorage.getItem("sgc_token");
+                const res = await fetch(`${API_URL}/pagos/${proveido.id}/pdf`, {
+                  headers: { "Authorization": `Bearer ${token}`, "ngrok-skip-browser-warning": "true" }
+                });
+                if (!res.ok) throw new Error("Error al generar PDF");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `CuadroLiquidacion_${orden.NRO_ORDEN?.trim()}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch(err) { alert("Error: " + err.message); }
+            }}
               style={{ padding:"7px 16px", background:"#e74c3c", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
               🖨️ Cuadro de Liquidación PDF
             </button>
