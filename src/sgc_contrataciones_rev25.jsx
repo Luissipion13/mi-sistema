@@ -1614,7 +1614,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                   <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA DOC.</th>
                   <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO (S/)</th>
                   <th style={{ padding:"7px 8px", border:"1px solid #ddd" }}>CONFORMIDAD</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>ACCIÓN</th>
                 </tr>
               </thead>
               <tbody>
@@ -1628,34 +1627,22 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                     <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>{d.fechaDocumento}</td>
                     <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(d.monto)}</td>
                     <td style={{ padding:"6px 8px", border:"1px solid #eee", fontSize:11 }}>{d.conformidad||"-"}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                      <button onClick={async () => {
-                        if (!window.confirm(`¿Eliminar el documento ${d.numeroDocumento}?`)) return;
-                        try {
-                          await api(`/pagos/documentos/${d.id}`, { method:"DELETE" });
-                          fetchData();
-                        } catch(err) { alert("Error: " + err.message); }
-                      }}
-                        title="Eliminar documento"
-                        style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"3px 8px", fontSize:13 }}>
-                        🗑️
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr style={{ background:"#ecf0f1", fontWeight:700 }}>
-                  <td colSpan={7} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO EJECUTADO</td>
+                  <td colSpan={6} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO EJECUTADO</td>
                   <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#27ae60" }}>S/ {fmt(montoEjecutado)}</td>
                   <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
                 </tr>
                 <tr style={{ background:"#fff3e0", fontWeight:700 }}>
-                  <td colSpan={7} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>SALDO DEL CONTRATO</td>
+                  <td colSpan={6} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>SALDO DEL CONTRATO</td>
                   <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color: saldo > 0 ? "#e67e22" : "#27ae60" }}>S/ {fmt(saldo)}</td>
                   <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
                 </tr>
               </tfoot>
+            </table>
           )}
 
           {/* Botón PDF */}

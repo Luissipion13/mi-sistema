@@ -38,38 +38,28 @@ const Logo = () => (
   </div>
 );
 
-const Sidebar = ({ activeMenu, setActiveMenu, expandedMenus, toggleMenu, user }) => {
-  const rol = user?.rol || 'ESPECIALISTA';
-  const esAreaUsuaria = rol === 'AREA_USUARIA';
-  const esAdmin = rol === 'ADMIN';
-
-  const allMenuItems = [
-    { key:"inicio", label:"Inicio", icon:"🏠", sub:[], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
+const Sidebar = ({ activeMenu, setActiveMenu, expandedMenus, toggleMenu }) => {
+  const menuItems = [
+    { key:"inicio", label:"Inicio", icon:"🏠", sub:[] },
     { key:"contratoMenor", label:"Contrato Menor", icon:"📋", sub:[
-      { key:"actuaciones", label:"Actuaciones Contractuales", roles:['ADMIN','ESPECIALISTA'] },
-      { key:"conformidades", label:"Conformidades", roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
-      { key:"pagos", label:"Pagos", roles:['ADMIN','ESPECIALISTA'] },
-      { key:"constancias", label:"Constancia de Orden", roles:['ADMIN','ESPECIALISTA'] },
-    ], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
+      { key:"actuaciones", label:"Actuaciones Contractuales" },
+      { key:"conformidades", label:"Conformidades" },
+      { key:"pagos", label:"Pagos" },
+      { key:"constancias", label:"Constancia de Orden" },
+    ]},
     { key:"procedimientos", label:"Procedimientos de Selección", icon:"⚙️", sub:[
-      { key:"contratos", label:"Contratos", roles:['ADMIN','ESPECIALISTA'] },
-      { key:"cronogramas", label:"Cronogramas", roles:['ADMIN','ESPECIALISTA'] },
-    ], roles:['ADMIN','ESPECIALISTA'] },
+      { key:"contratos", label:"Contratos" },
+      { key:"cronogramas", label:"Cronogramas" },
+    ]},
     { key:"reportes", label:"Reportes", icon:"📊", sub:[
-      { key:"repOrdenes", label:"Órdenes", roles:['ADMIN','ESPECIALISTA'] },
-      { key:"repConformidades", label:"Conformidades", roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
-    ], roles:['ADMIN','ESPECIALISTA','AREA_USUARIA'] },
+      { key:"repOrdenes", label:"Órdenes" },
+      { key:"repConformidades", label:"Conformidades" },
+    ]},
     { key:"mantenimiento", label:"Mantenimiento", icon:"🔧", sub:[
-      { key:"usuarios", label:"Usuarios", roles:['ADMIN'] },
-      { key:"parametros", label:"Parámetros", roles:['ADMIN'] },
-    ], roles:['ADMIN'] },
+      { key:"usuarios", label:"Usuarios" },
+      { key:"parametros", label:"Parámetros" },
+    ]},
   ];
-
-  // Filtrar menús según rol
-  const menuItems = allMenuItems
-    .filter(item => item.roles.includes(rol))
-    .map(item => ({ ...item, sub: item.sub.filter(s => s.roles.includes(rol)) }));
-
   return (
     <div style={{ width:190, minHeight:"100vh", background:"linear-gradient(180deg,#2c3e6b 0%,#34495e 100%)", color:"#fff", paddingTop:8, flexShrink:0, overflowY:"auto", boxShadow:"2px 0 12px rgba(0,0,0,0.15)" }}>
       {menuItems.map(item => (
@@ -1417,402 +1407,12 @@ const ConstanciasPage = () => {
   );
 };
 
-// --- PAGOS: MODAL REGISTRO DOCUMENTO ---
-const PagoDocumentoModal = ({ proveido, armada, conformidades, onClose, onSaved }) => {
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    idOrdenArmada: armada?.id || "",
-    idTipoDocumento: "",
-    serieDocumento: "",
-    numeroDocumento: "",
-    fechaDocumento: "",
-    monto: armada?.montoArmada || 0,
-    detalle: "",
-    idConformidad: armada?.idConformidad || "",
-  });
-  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const tiposDocumento = ["BOLETA DE VENTA","DESCUENTO DE PRESTACION NO EJECUTADA","DESCUENTO POR CONTRATO","DOCUMENTO DE COBRANZA","FACTURA","IMPUESTO","NOTA DE CRÉDITO","NOTA DE DEBITO","RECIBO","RECIBO POR HONORARIO","RETENCIÓN GARANTÍA","TICKET"];
-
-  const handleSave = async () => {
-    if (!form.idTipoDocumento) { alert("Seleccione el tipo de documento."); return; }
-    if (!form.numeroDocumento) { alert("Ingrese el número de documento."); return; }
-    if (!form.fechaDocumento)  { alert("Ingrese la fecha del documento."); return; }
-    if (!form.monto || parseFloat(form.monto) <= 0) { alert("Ingrese un monto válido."); return; }
-    setSaving(true);
-    try {
-      await api(`/pagos/${proveido.id}/documentos`, {
-        method: "POST",
-        body: JSON.stringify({ ...form, monto: parseFloat(form.monto) }),
-      });
-      alert("Documento registrado exitosamente.");
-      onSaved();
-    } catch(err) { alert("Error: " + err.message); }
-    finally { setSaving(false); }
-  };
-
-  const S = {
-    label: { fontSize:10, fontWeight:700, color:"#2c3e6b", textTransform:"uppercase", display:"block", marginBottom:4 },
-    input: { width:"100%", padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box" },
-    select: { width:"100%", padding:"6px 10px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box" },
-  };
-
-  return (
-    <Modal open={true} onClose={onClose} title="Registro de Documento de Pago" subtitle={`Armada ${String(armada?.nroArmada||"").padStart(3,"0")} — S/ ${fmt(armada?.montoArmada)}`}>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-        <div style={{ flex:"1 1 220px" }}>
-          <label style={S.label}>Tipo Documento (*)</label>
-          <select style={S.select} value={form.idTipoDocumento} onChange={e => upd("idTipoDocumento", e.target.value)}>
-            <option value="">(SELECCIONAR)</option>
-            {tiposDocumento.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div style={{ flex:"0 1 110px" }}>
-          <label style={S.label}>Serie Documento</label>
-          <input style={S.input} value={form.serieDocumento} onChange={e => upd("serieDocumento", e.target.value)} placeholder="E001" />
-        </div>
-        <div style={{ flex:"0 1 130px" }}>
-          <label style={S.label}>Número Documento (*)</label>
-          <input style={S.input} value={form.numeroDocumento} onChange={e => upd("numeroDocumento", e.target.value)} placeholder="000138" />
-        </div>
-        <div style={{ flex:"0 1 120px" }}>
-          <label style={S.label}>Fecha Documento (*)</label>
-          <input style={S.input} value={form.fechaDocumento} onChange={e => upd("fechaDocumento", e.target.value)} placeholder="dd/mm/yyyy" />
-        </div>
-        <div style={{ flex:"0 1 130px" }}>
-          <label style={S.label}>Monto (S/) (*)</label>
-          <input style={S.input} type="number" step="0.01" value={form.monto} onChange={e => upd("monto", e.target.value)} />
-        </div>
-        <div style={{ flex:"1 1 100%" }}>
-          <label style={S.label}>Conformidad vinculada</label>
-          <select style={S.select} value={form.idConformidad} onChange={e => upd("idConformidad", e.target.value)}>
-            <option value="">(NINGUNA)</option>
-            {conformidades.filter(c => c.id).map(c => (
-              <option key={c.id} value={c.id}>{c.nroConformidad} — Armada {String(c.nroArmada).padStart(3,"0")}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ flex:"1 1 100%" }}>
-          <label style={S.label}>Detalle / Observación</label>
-          <textarea style={{ ...S.input, height:60, resize:"vertical" }} value={form.detalle} onChange={e => upd("detalle", e.target.value)} />
-        </div>
-      </div>
-      <div style={{ display:"flex", justifyContent:"flex-end", gap:10, borderTop:"1px solid #eee", paddingTop:14, marginTop:14 }}>
-        <button onClick={onClose} style={{ padding:"9px 22px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
-        <button onClick={handleSave} disabled={saving}
-          style={{ padding:"9px 22px", background: saving?"#95a5a6":"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor: saving?"wait":"pointer", fontSize:13, fontWeight:700 }}>
-          {saving ? "⏳ Guardando..." : "✓ Guardar Documento"}
-        </button>
-      </div>
-    </Modal>
-  );
-};
-
-// --- PAGOS: DETALLE DE ORDEN ---
-const PagoDetalle = ({ ordenId, onBack }) => {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [modalDoc, setModalDoc] = useState(null); // { proveido, armada }
-  const [creandoProveido, setCreandoProveido] = useState(false);
-
-  const fetchData = () => {
-    setLoading(true);
-    api(`/pagos/${ordenId}`).then(setData).catch(console.error).finally(() => setLoading(false));
-  };
-  useEffect(() => { fetchData(); }, [ordenId]);
-
-  const handleCrearProveido = async () => {
-    if (!window.confirm("¿Generar el Cuadro de Liquidación para esta orden?")) return;
-    setCreandoProveido(true);
-    try {
-      await api(`/pagos/${ordenId}/proveido`, { method:"POST" });
-      fetchData();
-    } catch(err) { alert("Error: " + err.message); }
-    finally { setCreandoProveido(false); }
-  };
-
-  if (loading) return <div style={{ textAlign:"center", padding:60 }}>⏳ Cargando...</div>;
-  if (!data)   return <div style={{ textAlign:"center", padding:60, color:"#e74c3c" }}>Error al cargar datos.</div>;
-
-  const { orden, armadas, proveido, documentos } = data;
-  const montoTotal     = parseFloat(orden.MONTO_OS) || 0;
-  const montoEjecutado = documentos.reduce((s, d) => s + (parseFloat(d.monto)||0), 0);
-  const saldo          = montoTotal - montoEjecutado;
-
-  const periodoLabel = (nro) => {
-    const labels = ["PRIMER PAGO","SEGUNDO PAGO","TERCER PAGO","CUARTO PAGO","QUINTO PAGO","SEXTO PAGO","SÉTIMO PAGO","OCTAVO PAGO","NOVENO PAGO","DÉCIMO PAGO"];
-    return labels[nro - 1] || `PAGO ${nro}`;
-  };
-
-  return (
-    <div>
-      <button onClick={onBack} style={{ marginBottom:12, padding:"6px 16px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12 }}>← Retornar</button>
-
-      {/* Cabecera orden */}
-      <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Detalles de la orden</div>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:8, background:"#f8f9fa", padding:10, borderRadius:6, marginBottom:16 }}>
-        <Field label="N° Orden"   value={orden.NRO_ORDEN} />
-        <Field label="Fecha Orden" value={orden.FECHA_ORDEN} />
-        <Field label="Objeto"     value={orden.TIPO_BIEN==="B"?"BIEN":"SERVICIO"} />
-        <Field label="Monto"      value={`S/ ${fmt(montoTotal)}`} />
-        <Field label="RUC"        value={orden.RUC} />
-        <Field label="Proveedor"  value={orden.NOMBRE_PROVEEDOR} />
-        <Field label="Exp. SIAF"  value={orden.EXPEDIENTE} />
-        <Field label="Tipo Contr." value={orden.TIPO_CONTRATACION} />
-        <Field label="F. Inicio"  value={orden.FECHA_INICIO} />
-        <Field label="F. Fin"     value={orden.FECHA_FIN} />
-        <div style={{ flex:"1 1 100%" }}><Field label="Concepto" value={orden.CONCEPTO} /></div>
-      </div>
-
-      {/* Cuadro de Liquidación */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b" }}>Cuadro de Liquidación</div>
-        {!proveido && (
-          <button onClick={handleCrearProveido} disabled={creandoProveido}
-            style={{ padding:"6px 14px", background:"#27ae60", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
-            {creandoProveido ? "⏳ Generando..." : "+ Nuevo Cuadro de Liquidación"}
-          </button>
-        )}
-      </div>
-
-      {!proveido ? (
-        <div style={{ textAlign:"center", padding:30, color:"#95a5a6", border:"1px dashed #ccc", borderRadius:6, marginBottom:16 }}>
-          No hay cuadro de liquidación generado. Haga clic en "+ Nuevo Cuadro de Liquidación".
-        </div>
-      ) : (
-        <div style={{ background:"#f8f9fa", border:"1px solid #e0e0e0", borderRadius:6, padding:14, marginBottom:16 }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
-            <Field label="N° Proveído"  value={proveido.NUMERO_PROVEIDO} />
-            <Field label="Fecha"        value={proveido.FECHA} />
-            <Field label="Estado"       value={proveido.ESTADO === 1 ? "PENDIENTE" : "APROBADO"} color={proveido.ESTADO === 1 ? "#e67e22" : "#27ae60"} />
-            <Field label="CCI"          value={proveido.ID_CCI || "—"} />
-            {proveido.NOTA && <div style={{ flex:"1 1 100%" }}><Field label="Nota" value={proveido.NOTA} /></div>}
-          </div>
-
-          {/* Tabla de documentos de pago */}
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b" }}>Documentos de Pago</div>
-            <button onClick={() => setModalDoc({ proveido, armada: armadas[0] })}
-              style={{ padding:"5px 12px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12 }}>
-              + Agregar Documento
-            </button>
-          </div>
-
-          {documentos.length === 0 ? (
-            <div style={{ textAlign:"center", padding:20, color:"#95a5a6", fontSize:12, border:"1px dashed #ccc", borderRadius:4 }}>
-              No hay documentos de pago registrados.
-            </div>
-          ) : (
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, marginBottom:12 }}>
-              <thead>
-                <tr style={{ background:"#2c3e6b", color:"#fff" }}>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>ARMADA</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>PERIODO</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd" }}>DOCUMENTO</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>SERIE</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>N° DOC.</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA DOC.</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO (S/)</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd" }}>CONFORMIDAD</th>
-                  <th style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"center" }}>ACCIÓN</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documentos.map((d, i) => (
-                  <tr key={i} style={{ background: i%2===0?"#fff":"#f9fafb" }}>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{String(d.nroArmada||"").padStart(3,"0")}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>{periodoLabel(d.nroDoc||i+1)}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee" }}>{d.idTipoDocumento}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>{d.serieDocumento||"-"}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>{d.numeroDocumento}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>{d.fechaDocumento}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(d.monto)}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", fontSize:11 }}>{d.conformidad||"-"}</td>
-                    <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                      <button onClick={async () => {
-                        if (!window.confirm(`¿Eliminar el documento ${d.numeroDocumento}?`)) return;
-                        try {
-                          await api(`/pagos/documentos/${d.id}`, { method:"DELETE" });
-                          fetchData();
-                        } catch(err) { alert("Error: " + err.message); }
-                      }}
-                        title="Eliminar documento"
-                        style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"3px 8px", fontSize:13 }}>
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ background:"#ecf0f1", fontWeight:700 }}>
-                  <td colSpan={7} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO EJECUTADO</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#27ae60" }}>S/ {fmt(montoEjecutado)}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
-                </tr>
-                <tr style={{ background:"#fff3e0", fontWeight:700 }}>
-                  <td colSpan={7} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>SALDO DEL CONTRATO</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color: saldo > 0 ? "#e67e22" : "#27ae60" }}>S/ {fmt(saldo)}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
-                </tr>
-              </tfoot>
-          )}
-
-          {/* Botón PDF */}
-          <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
-            <button onClick={() => window.open(`${API_URL}/pagos/${proveido.id}/pdf`, "_blank")}
-              style={{ padding:"7px 16px", background:"#e74c3c", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
-              🖨️ Cuadro de Liquidación PDF
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Cuotas por pagar */}
-      <div style={{ fontSize:13, fontWeight:700, color:"#2c3e6b", borderBottom:"2px solid #2c3e6b", paddingBottom:3, marginBottom:8 }}>Cuotas por pagar</div>
-      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, marginBottom:16 }}>
-        <thead>
-          <tr style={{ background:"linear-gradient(180deg,#ecf0f1,#dfe6e9)" }}>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>#</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>ARMADA</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>PLAZO</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA INICIO</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA FIN</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO PROGRAMADO (S/)</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO LIQUIDADO (S/)</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO POR PAGAR (S/)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {armadas.map((a, i) => {
-            const liq = documentos.filter(d => d.idOrdenArmada === a.id).reduce((s,d) => s+(parseFloat(d.monto)||0), 0);
-            const porPagar = (parseFloat(a.montoArmada)||0) - liq;
-            const pagado = liq >= (parseFloat(a.montoArmada)||0);
-            return (
-              <tr key={i} style={{ background: pagado ? "#dcfce7" : i%2===0?"#fff":"#f9fafb" }}>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{String(a.nroArmada).padStart(3,"0")}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.plazo}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaInicio}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaFin}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(a.montoArmada)}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", color:"#27ae60", fontWeight:600 }}>{fmt(liq)}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", color: porPagar > 0 ? "#e67e22" : "#27ae60", fontWeight:700 }}>{fmt(porPagar)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr style={{ background:"#ecf0f1", fontWeight:700 }}>
-            <td colSpan={5} style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>TOTAL</td>
-            <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(montoTotal)}</td>
-            <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#27ae60" }}>{fmt(montoEjecutado)}</td>
-            <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#e67e22" }}>{fmt(saldo)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      {/* Leyenda */}
-      <div style={{ display:"flex", gap:16, fontSize:11, color:"#666", marginBottom:12 }}>
-        <span><span style={{ display:"inline-block", width:12, height:12, background:"#dcfce7", border:"1px solid #ccc", marginRight:4 }}></span>Armada pagada</span>
-        <span><span style={{ display:"inline-block", width:12, height:12, background:"#fff3e0", border:"1px solid #ccc", marginRight:4 }}></span>Armada con saldo</span>
-      </div>
-
-      {modalDoc && (
-        <PagoDocumentoModal
-          proveido={modalDoc.proveido}
-          armada={modalDoc.armada}
-          conformidades={armadas}
-          onClose={() => setModalDoc(null)}
-          onSaved={() => { setModalDoc(null); fetchData(); }}
-        />
-      )}
-    </div>
-  );
-};
-
-// --- PAGOS PAGE ---
-const PagosPage = () => {
-  const { values, onChange, onClear } = useFilters({ ano:"2026" });
-  const [data, setData]       = useState([]);
-  const [total, setTotal]     = useState(0);
-  const [page, setPage]       = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [selectedOrden, setSelectedOrden] = useState(null);
-  const limit = 30;
-
-  const fetchData = async (p = page) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: p, limit, ...Object.fromEntries(Object.entries(values).filter(([,v]) => v && v !== "(TODOS)")) });
-      const res = await api(`/pagos?${params}`);
-      setData(res.data); setTotal(res.total);
-    } catch(e) { console.error(e); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchData(1); setPage(1); }, []);
-
-  if (selectedOrden) return <PagoDetalle ordenId={selectedOrden} onBack={() => { setSelectedOrden(null); fetchData(); }} />;
-
-  const columns = [
-    { key:"ano",       label:"AÑO",        align:"center", width:"4%" },
-    { key:"tipoBien",  label:"TIPO",       align:"center", width:"4%" },
-    { key:"nOrden",    label:"N° ORDEN",   align:"center", width:"9%" },
-    { key:"fecha",     label:"FECHA",      align:"center", width:"8%" },
-    { key:"concepto",  label:"CONCEPTO",   width:"22%" },
-    { key:"proveedor", label:"PROVEEDOR",  width:"18%" },
-    { key:"monto",     label:"MONTO (S/)", align:"right",  width:"8%", format: v => fmt(v) },
-    { key:"totalArmadas",  label:"ARM.",   align:"center", width:"4%" },
-    { key:"nroCuadros",    label:"N° CUADROS", align:"center", width:"6%",
-      format: v => v > 0
-        ? <span style={{ background:"#27ae60", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>{v}</span>
-        : <span style={{ background:"#e0e0e0", color:"#666", borderRadius:3, padding:"2px 8px", fontSize:11 }}>0</span>
-    },
-  ];
-
-  return (
-    <div>
-      <h2 style={{ fontSize:15, fontWeight:700, color:"#2c3e50", marginBottom:12, textTransform:"uppercase" }}>Pagos de Órdenes de Bienes y Servicios – Contratos Menores</h2>
-      <FilterBar values={values} onChange={onChange} onClear={() => { onClear(); }} filters={[
-        { key:"ano",       label:"Año",        type:"input",  width:70, placeholder:"2026" },
-        { key:"tipoBien",  label:"Tipo Orden",  type:"select", options:["(TODOS)","B","S"] },
-        { key:"nOrden",    label:"N° Orden",   type:"input",  width:110 },
-        { key:"ruc",       label:"RUC",        type:"input",  width:110 },
-        { key:"proveedor", label:"Proveedor",  type:"input",  width:160 },
-        { key:"expSiaf",   label:"N° Exp. SIAF", type:"input", width:110 },
-        { key:"estadoProveido", label:"Estado Cuadro", type:"select", options:["(TODOS)","CON CUADRO","SIN CUADRO"] },
-      ]} onSearch={() => { setPage(1); fetchData(1); }} />
-
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <div style={{ fontSize:12, fontWeight:600, color:"#2c3e6b", background:"#eef2f7", padding:"6px 12px", borderRadius:4 }}>
-          LISTADO — {total} registro(s) con cronograma
-        </div>
-        <div style={{ display:"flex", gap:12, fontSize:11, color:"#666" }}>
-          <span><span style={{ display:"inline-block", width:12, height:12, background:"#dbeafe", border:"1px solid #ccc", marginRight:4 }}></span>Con cronograma</span>
-          <span><span style={{ display:"inline-block", width:12, height:12, background:"#fff", border:"1px solid #ccc", marginRight:4 }}></span>Sin cronograma</span>
-        </div>
-      </div>
-
-      {loading ? <div style={{ textAlign:"center", padding:40 }}>⏳ Cargando...</div> : (
-        <>
-          <DataTable columns={columns} data={data} onRowClick={row => setSelectedOrden(row.id)}
-            actions={[
-              { icon:"⚠️", label:"Alertas", onClick: row => alert(`Orden ${row.nOrden}`) },
-              { icon:"📋", label:"Ver detalle", onClick: row => setSelectedOrden(row.id) },
-            ]} />
-          <div style={{ display:"flex", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12 }}>
-            <button onClick={() => { setPage(p => Math.max(1,p-1)); fetchData(Math.max(1,page-1)); }} disabled={page<=1}
-              style={{ padding:"6px 12px", border:"1px solid #ccc", borderRadius:4, cursor:page<=1?"default":"pointer", background:page<=1?"#f0f0f0":"#fff" }}>◀ Anterior</button>
-            <span style={{ padding:"6px 12px" }}>Página {page} de {Math.ceil(total/limit)||1}</span>
-            <button onClick={() => { setPage(p => p+1); fetchData(page+1); }} disabled={page>=Math.ceil(total/limit)}
-              style={{ padding:"6px 12px", border:"1px solid #ccc", borderRadius:4, cursor:page>=Math.ceil(total/limit)?"default":"pointer", background:page>=Math.ceil(total/limit)?"#f0f0f0":"#fff" }}>Siguiente ▶</button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+const PagosPage = () => (
+  <div>
+    <h2 style={{ fontSize:15, fontWeight:700, color:"#2c3e50", marginBottom:16, textTransform:"uppercase" }}>Pagos – Contratos Menores</h2>
+    <div style={{ textAlign:"center", padding:40, color:"#95a5a6", fontSize:14 }}>Módulo en desarrollo.</div>
+  </div>
+);
 
 const PlaceholderPage = ({ title }) => (
   <div style={{ textAlign:"center", padding:60 }}>
@@ -1931,18 +1531,9 @@ export default function SGCApp() {
   const [expandedMenus, setExpandedMenus] = useState({ contratoMenor: true });
 
   const toggleMenu = useCallback((key) => { setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] })); }, []);
-  const handleLogin = (userData) => {
-    setUser(userData);
-    // AREA_USUARIA va directo a conformidades
-    if (userData?.rol === 'AREA_USUARIA') {
-      setActiveMenu('conformidades');
-      setExpandedMenus({ contratoMenor: true });
-    }
-  };
-
   const handleLogout = () => { localStorage.removeItem("sgc_token"); setUser(null); setActiveMenu("inicio"); };
 
-  if (!user) return <LoginPage onLogin={handleLogin} />;
+  if (!user) return <LoginPage onLogin={setUser} />;
 
   const renderPage = () => {
     switch(activeMenu) {
@@ -1973,7 +1564,7 @@ export default function SGCApp() {
         </div>
       </header>
       <div style={{ display:"flex", flex:1 }}>
-        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} expandedMenus={expandedMenus} toggleMenu={toggleMenu} user={user} />
+        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} expandedMenus={expandedMenus} toggleMenu={toggleMenu} />
         <main style={{ flex:1, padding:"16px 12px", overflowY:"auto", maxHeight:"calc(100vh - 52px)", minWidth:0 }}>{renderPage()}</main>
       </div>
     </div>
