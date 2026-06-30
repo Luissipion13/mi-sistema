@@ -1656,7 +1656,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                   <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
                 </tr>
               </tfoot>
-            </table>
           )}
 
           {/* Botón PDF */}
