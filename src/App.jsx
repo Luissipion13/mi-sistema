@@ -4,4 +4,4 @@ function App() {
   return <SGCApp />
 }
 
-export default App
+export default App 
