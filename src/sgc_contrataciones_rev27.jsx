@@ -1830,90 +1830,6 @@ const PagosPage = () => {
   );
 };
 
-// --- REPORTES PAGE ---
-const ReportesPage = () => {
-  const [tipo, setTipo] = useState('');
-  const [ano, setAno] = useState('2026');
-  const [ruc, setRuc] = useState('');
-  const [desde, setDesde] = useState('2026-01-01');
-  const [hasta, setHasta] = useState(new Date().toISOString().slice(0,10));
-  const [loading, setLoading] = useState(false);
-
-  const tipos = [
-    { value:'ordenes_vigentes',  label:'REPORTE DE ÓRDENES VIGENTES' },
-    { value:'cronograma',        label:'REPORTE DE REGISTRO DE CRONOGRAMA' },
-    { value:'conformidades',     label:'REPORTE DE REGISTRO DE CONFORMIDADES' },
-    { value:'proveido',          label:'REPORTE DE REGISTRO DE PROVEÍDO' },
-    { value:'terceros_vigentes', label:'REPORTE DE TERCEROS VIGENTES' },
-  ];
-
-  const handleGenerar = async () => {
-    if (!tipo) { alert('Seleccione un tipo de reporte.'); return; }
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('sgc_token');
-      const params = new URLSearchParams({ tipo, ano, ruc, desde, hasta });
-      const res = await fetch(`${API_URL}/reportes?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'ngrok-skip-browser-warning': 'true' }
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Reporte_${tipo}_${Date.now()}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch(err) { alert('Error: ' + err.message); }
-    finally { setLoading(false); }
-  };
-
-  const S = {
-    label: { fontSize:10, fontWeight:700, color:'#2c3e6b', textTransform:'uppercase', display:'block', marginBottom:4 },
-    input: { padding:'8px 10px', border:'1px solid #ccc', borderRadius:4, fontSize:12, width:'100%', boxSizing:'border-box' },
-    select: { padding:'8px 10px', border:'1px solid #ccc', borderRadius:4, fontSize:12, width:'100%', boxSizing:'border-box' },
-  };
-
-  return (
-    <div>
-      <h2 style={{ fontSize:15, fontWeight:700, color:'#2c3e50', marginBottom:16, textTransform:'uppercase' }}>Reportes de Órdenes de Bienes y Servicios</h2>
-      <div style={{ background:'#fff', borderRadius:6, padding:24, boxShadow:'0 1px 4px rgba(0,0,0,0.08)', maxWidth:700 }}>
-        <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:20 }}>
-          <div style={{ flex:'1 1 100%' }}>
-            <label style={S.label}>Tipo de Reporte (*)</label>
-            <select style={S.select} value={tipo} onChange={e => setTipo(e.target.value)}>
-              <option value=''>(SELECCIONAR)</option>
-              {tipos.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div style={{ flex:'0 1 100px' }}>
-            <label style={S.label}>Año</label>
-            <input style={S.input} value={ano} onChange={e => setAno(e.target.value)} placeholder="2026" />
-          </div>
-          <div style={{ flex:'1 1 180px' }}>
-            <label style={S.label}>RUC Proveedor</label>
-            <input style={S.input} value={ruc} onChange={e => setRuc(e.target.value)} placeholder="Todos" />
-          </div>
-          <div style={{ flex:'1 1 150px' }}>
-            <label style={S.label}>Fecha Desde</label>
-            <input style={S.input} type="date" value={desde} onChange={e => setDesde(e.target.value)} />
-          </div>
-          <div style={{ flex:'1 1 150px' }}>
-            <label style={S.label}>Hasta</label>
-            <input style={S.input} type="date" value={hasta} onChange={e => setHasta(e.target.value)} />
-          </div>
-        </div>
-        <div style={{ display:'flex', justifyContent:'flex-end' }}>
-          <button onClick={handleGenerar} disabled={loading}
-            style={{ padding:'10px 28px', background: loading ? '#95a5a6' : '#27ae60', color:'#fff', border:'none', borderRadius:4, cursor: loading ? 'wait' : 'pointer', fontSize:13, fontWeight:700 }}>
-            {loading ? '⏳ Generando...' : '⚙️ Generar Reporte'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const PlaceholderPage = ({ title }) => (
   <div style={{ textAlign:"center", padding:60 }}>
     <div style={{ fontSize:48, marginBottom:16 }}>🚧</div>
@@ -2051,7 +1967,6 @@ export default function SGCApp() {
       case "conformidades": return <ConformidadesPage />;
       case "pagos": return <PagosPage />;
       case "constancias": return <ConstanciasPage />;
-      case "reportes": return <ReportesPage />;
       default: return <PlaceholderPage title={activeMenu} />;
     }
   };
