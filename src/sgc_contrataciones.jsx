@@ -2051,7 +2051,10 @@ export default function SGCApp() {
       case "conformidades": return <ConformidadesPage />;
       case "pagos": return <PagosPage />;
       case "constancias": return <ConstanciasPage />;
-      case "reportes": return <ReportesPage />;
+      case "reportes":
+	case "repOrdenes":
+	case "repConformidades":
+ 	return <ReportesPage />;
       default: return <PlaceholderPage title={activeMenu} />;
     }
   };
