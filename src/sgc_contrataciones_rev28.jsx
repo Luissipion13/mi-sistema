@@ -1487,13 +1487,9 @@ const PagoDocumentoModal = ({ proveido, armada, conformidades, onClose, onSaved 
           <label style={S.label}>Conformidad vinculada</label>
           <select style={S.select} value={form.idConformidad} onChange={e => upd("idConformidad", e.target.value)}>
             <option value="">(NINGUNA)</option>
-            {conformidades
-              .filter(c => c.idConformidad && c.id === armada?.id)
-              .map(c => (
-                <option key={c.idConformidad} value={c.idConformidad}>
-                  {c.nroConformidad} — Armada {String(c.nroArmada).padStart(3,"0")}
-                </option>
-              ))}
+            {conformidades.filter(c => c.id).map(c => (
+              <option key={c.id} value={c.id}>{c.nroConformidad} — Armada {String(c.nroArmada).padStart(3,"0")}</option>
+            ))}
           </select>
         </div>
         <div style={{ flex:"1 1 100%" }}>
@@ -1596,7 +1592,10 @@ const PagoDetalle = ({ ordenId, onBack }) => {
           {/* Tabla de documentos de pago */}
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
             <div style={{ fontSize:12, fontWeight:700, color:"#2c3e6b" }}>Documentos de Pago</div>
-            <span style={{ fontSize:11, color:"#95a5a6" }}>Use el botón "Pagar" en cada armada (abajo) para registrar un pago.</span>
+            <button onClick={() => setModalDoc({ proveido, armada: armadas[0] })}
+              style={{ padding:"5px 12px", background:"#2c3e6b", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12 }}>
+              + Agregar Documento
+            </button>
           </div>
 
           {documentos.length === 0 ? (
@@ -1698,7 +1697,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
             <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO PROGRAMADO (S/)</th>
             <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO LIQUIDADO (S/)</th>
             <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO POR PAGAR (S/)</th>
-            <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>ACCIÓN</th>
           </tr>
         </thead>
         <tbody>
@@ -1706,8 +1704,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
             const liq = documentos.filter(d => d.idOrdenArmada === a.id).reduce((s,d) => s+(parseFloat(d.monto)||0), 0);
             const porPagar = (parseFloat(a.montoArmada)||0) - liq;
             const pagado = liq >= (parseFloat(a.montoArmada)||0);
-            const tieneConf = !!a.idConformidad;
-            const puedePagar = !!proveido && tieneConf && !pagado;
             return (
               <tr key={i} style={{ background: pagado ? "#dcfce7" : i%2===0?"#fff":"#f9fafb" }}>
                 <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
@@ -1718,24 +1714,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                 <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(a.montoArmada)}</td>
                 <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", color:"#27ae60", fontWeight:600 }}>{fmt(liq)}</td>
                 <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", color: porPagar > 0 ? "#e67e22" : "#27ae60", fontWeight:700 }}>{fmt(porPagar)}</td>
-                <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                  {pagado ? (
-                    <span style={{ background:"#27ae60", color:"#fff", borderRadius:3, padding:"3px 10px", fontSize:11 }}>PAGADO</span>
-                  ) : (
-                    <button
-                      onClick={() => setModalDoc({ proveido, armada: a })}
-                      disabled={!puedePagar}
-                      title={tieneConf ? "Registrar pago de esta armada" : "La armada no tiene conformidad registrada"}
-                      style={{
-                        background: puedePagar ? "#2c3e6b" : "#bdc3c7",
-                        color:"#fff", border:"none", borderRadius:3,
-                        cursor: puedePagar ? "pointer" : "not-allowed",
-                        padding:"4px 12px", fontSize:12, fontWeight:700
-                      }}>
-                      💲 Pagar
-                    </button>
-                  )}
-                </td>
               </tr>
             );
           })}
@@ -1746,7 +1724,6 @@ const PagoDetalle = ({ ordenId, onBack }) => {
             <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(montoTotal)}</td>
             <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#27ae60" }}>{fmt(montoEjecutado)}</td>
             <td style={{ padding:"7px 8px", border:"1px solid #ddd", textAlign:"right", color:"#e67e22" }}>{fmt(saldo)}</td>
-            <td style={{ padding:"7px 8px", border:"1px solid #ddd" }}></td>
           </tr>
         </tfoot>
       </table>
