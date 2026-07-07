@@ -1249,6 +1249,7 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
             <tr style={{ background:"linear-gradient(180deg,#ecf0f1,#dfe6e9)" }}>
               <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}></th>
               <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>N° ARMADA</th>
+              <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"left" }}>CENTRO DE COSTO</th>
               <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA INICIO</th>
               <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"center" }}>FECHA FIN</th>
               <th style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>MONTO PROGRAMADO (S/)</th>
@@ -1261,57 +1262,74 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
             </tr>
           </thead>
           <tbody>
-            {armadas.map((a, i) => {
-              const tieneConf = !!a.idConformidad;
-              return (
-                <tr key={i} style={{ background: tieneConf ? "#dbeafe" : i%2===0?"#fff":"#f9fafb" }}>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i+1}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{String(a.nroArmada).padStart(3,"0")}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaInicio}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaFin}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(a.montoArmada)}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.nroConformidad||"-"}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaConformidad||"-"}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaEntrega||"-"}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{a.montoConformidad ? fmt(a.montoConformidad) : "-"}</td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                    {tieneConf ? <span style={{ background:"#2c3e6b", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>EMITIDO</span>
-                      : <span style={{ background:"#f39c12", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>PENDIENTE</span>}
-                  </td>
-                  <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                    {!tieneConf && (
-                      <button onClick={() => setSelectedArmada(a)} title="Registrar conformidad"
-                        style={{ background:"#27ae60", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 10px", fontSize:12 }}>
-                        ✓ Registrar
-                      </button>
-                    )}
-                    {tieneConf && (
-                      <div style={{ display:"flex", gap:4, justifyContent:"center", alignItems:"center" }}>
-                        <button
-                          onClick={() => setSelectedArmada({ ...a, modoEdicion: true })}
-                          title="Editar conformidad"
-                          style={{ background:"#f39c12", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
-                          ✏️
+            {armadas.flatMap((a, ai) => {
+              const centros = a.centrosCosto || [];
+              if (centros.length === 0) {
+                return [(
+                  <tr key={`a${ai}`} style={{ background:"#fff" }}>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{ai+1}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{String(a.nroArmada).padStart(3,"0")}</td>
+                    <td colSpan={9} style={{ padding:"7px 8px", border:"1px solid #eee", color:"#e67e22", fontSize:11 }}>
+                      ⚠ Sin centros de costo. Ejecute "Actualizar lista".
+                    </td>
+                  </tr>
+                )];
+              }
+              return centros.map((cc, ci) => {
+                const tieneConf = !!cc.idConformidad;
+                // objeto que recibe el modal: armada + centro específico ya fijado
+                const armadaCentro = { ...a, centrosCosto: [cc], _centroFijo: cc };
+                return (
+                  <tr key={`a${ai}c${ci}`} style={{ background: tieneConf ? "#dbeafe" : (ai+ci)%2===0?"#fff":"#f9fafb" }}>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{ci===0 ? ai+1 : ""}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:700 }}>{ci===0 ? String(a.nroArmada).padStart(3,"0") : ""}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"left", fontSize:11 }}>{cc.nombreCentroCosto}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaInicio}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{a.fechaFin}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{fmt(cc.monto)}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{cc.nroConformidad||"-"}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{cc.fechaConformidad||"-"}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>{cc.fechaEntrega||"-"}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"right", fontWeight:600 }}>{cc.montoConformidad ? fmt(cc.montoConformidad) : "-"}</td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
+                      {tieneConf ? <span style={{ background:"#2c3e6b", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>EMITIDO</span>
+                        : <span style={{ background:"#f39c12", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>PENDIENTE</span>}
+                    </td>
+                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
+                      {!tieneConf && (
+                        <button onClick={() => setSelectedArmada(armadaCentro)} title="Registrar conformidad de este centro"
+                          style={{ background:"#27ae60", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 10px", fontSize:12 }}>
+                          ✓ Registrar
                         </button>
-                        <button
-                          onClick={() => window.open(`${API_URL}/conformidades/${a.idConformidad}/pdf`, '_blank')}
-                          title="Descargar PDF"
-                          style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
-                          🖨️
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
+                      )}
+                      {tieneConf && (
+                        <div style={{ display:"flex", gap:4, justifyContent:"center", alignItems:"center" }}>
+                          <button
+                            onClick={() => setSelectedArmada({ ...armadaCentro, modoEdicion: true, idConformidad: cc.idConformidad, nroConformidad: cc.nroConformidad })}
+                            title="Editar conformidad"
+                            style={{ background:"#f39c12", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => window.open(`${API_URL}/conformidades/${cc.idConformidad}/pdf`, '_blank')}
+                            title="Descargar PDF"
+                            style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
+                            🖨️
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              });
             })}
           </tbody>
           <tfoot>
             <tr style={{ background:"#ecf0f1", fontWeight:700 }}>
-              <td colSpan={4} style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>TOTAL</td>
-              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(parseFloat(a.montoArmada)||0),0))}</td>
+              <td colSpan={5} style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>TOTAL</td>
+              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(a.centrosCosto||[]).reduce((t,c)=>t+(parseFloat(c.monto)||0),0),0))}</td>
               <td colSpan={3} style={{ padding:"8px", border:"1px solid #ddd" }}></td>
-              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(parseFloat(a.montoConformidad)||0),0))}</td>
+              <td style={{ padding:"8px", border:"1px solid #ddd", textAlign:"right" }}>{fmt(armadas.reduce((s,a)=>s+(a.centrosCosto||[]).reduce((t,c)=>t+(parseFloat(c.montoConformidad)||0),0),0))}</td>
               <td colSpan={2} style={{ padding:"8px", border:"1px solid #ddd" }}></td>
             </tr>
           </tfoot>
