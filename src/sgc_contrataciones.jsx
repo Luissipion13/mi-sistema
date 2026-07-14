@@ -1883,6 +1883,7 @@ const ReportesPage = () => {
   const tipos = [
     { value:'ordenes_vigentes',  label:'REPORTE DE ÓRDENES VIGENTES' },
     { value:'cronograma',        label:'REPORTE DE REGISTRO DE CRONOGRAMA' },
+    { value:'cronograma_centro', label:'REPORTE DE CRONOGRAMA POR CENTRO DE COSTO' },
     { value:'conformidades',     label:'REPORTE DE REGISTRO DE CONFORMIDADES' },
     { value:'proveido',          label:'REPORTE DE REGISTRO DE PROVEÍDO' },
     { value:'terceros_vigentes', label:'REPORTE DE TERCEROS VIGENTES' },
