@@ -264,9 +264,9 @@ const HomePage = ({ setActiveMenu }) => {
         ALERTAS AL <span style={{ color:"#e74c3c" }}>{today}</span> – Contrato Menor y Otras modalidades
       </div>
       <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginBottom:24 }}>
-        <StatCard title="SIN CRONOGRAMA" value={a.sinCronograma} subtitle="Órdenes" color="#2c3e6b" onClick={()=>setActiveMenu("actuaciones")} />
-        <StatCard title="VENCEN HOY" value={a.vencenHoy} subtitle="Órdenes" color="#e74c3c" onClick={()=>setActiveMenu("actuaciones")} />
-        <StatCard title="VENCEN PROX. 7 DÍAS" value={a.vencen7Dias} subtitle="Órdenes" color="#e67e22" onClick={()=>setActiveMenu("actuaciones")} />
+        <StatCard title="SIN CRONOGRAMA" value={a.sinCronograma} subtitle="Órdenes" color="#2c3e6b" onClick={()=>setActiveMenu("actuaciones","sin_cronograma")} />
+        <StatCard title="VENCEN HOY" value={a.vencenHoy} subtitle="Órdenes" color="#e74c3c" onClick={()=>setActiveMenu("actuaciones","vencen_hoy")} />
+        <StatCard title="VENCEN PROX. 7 DÍAS" value={a.vencen7Dias} subtitle="Órdenes" color="#e67e22" onClick={()=>setActiveMenu("actuaciones","vencen_7dias")} />
       </div>
       <div style={{ fontSize:14, fontWeight:700, color:"#2c3e50", marginBottom:16 }}>
         ESTADÍSTICAS AL <span style={{ color:"#e74c3c" }}>{today}</span> – Contrato Menor y Otras modalidades
@@ -297,7 +297,7 @@ const HomePage = ({ setActiveMenu }) => {
   );
 };
 
-const ActuacionesPage = () => {
+const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -309,7 +309,7 @@ const ActuacionesPage = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(35);
-  const { values, onChange, onClear } = useFilters({ ano: "2026" });
+  const { values, onChange, onClear } = useFilters(alertaInicial ? { ano: "2026", alerta: alertaInicial } : { ano: "2026" });
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -410,6 +410,22 @@ const ActuacionesPage = () => {
         { key:"expSiaf", label:"N° Exp. SIAF", type:"input", width:100 },
         { key:"especialista", label:"Usuario SIGA", type:"select", options:["(TODOS)", ...especialistas] },
       ]} />
+      {values.alerta && (
+        <div style={{ marginBottom:8, padding:"8px 12px", background:"#fff3cd", border:"1px solid #ffc107", borderRadius:4,
+          display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12 }}>
+          <span style={{ color:"#856404", fontWeight:600 }}>
+            🔎 Filtrado desde el panel de inicio: {
+              values.alerta === 'sin_cronograma' ? 'Órdenes SIN CRONOGRAMA' :
+              values.alerta === 'vencen_hoy' ? 'Órdenes que VENCEN HOY' :
+              values.alerta === 'vencen_7dias' ? 'Órdenes que VENCEN EN LOS PRÓX. 7 DÍAS' : values.alerta
+            }
+          </span>
+          <button onClick={() => { onChange("alerta", ""); onClearAlerta(); setPage(1); }}
+            style={{ padding:"3px 10px", background:"#856404", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", fontSize:11 }}>
+            ✕ Quitar filtro
+          </button>
+        </div>
+      )}
       <div style={{ marginBottom:8, display:"flex", gap:16, fontSize:11.5, color:"#555", justifyContent:"space-between", alignItems:"center" }}>
         <div style={{ display:"flex", gap:16, alignItems:"center" }}>
           <span>LEYENDA:</span>
@@ -2070,6 +2086,7 @@ const GlobalStyle = () => {
 export default function SGCApp() {
   const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState("inicio");
+  const [alertaFiltro, setAlertaFiltro] = useState(null);
   const [expandedMenus, setExpandedMenus] = useState({ contratoMenor: true });
 
   const toggleMenu = useCallback((key) => { setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] })); }, []);
@@ -2088,8 +2105,8 @@ export default function SGCApp() {
 
   const renderPage = () => {
     switch(activeMenu) {
-      case "inicio": return <HomePage setActiveMenu={(m) => { setActiveMenu(m); setExpandedMenus(p => ({...p, contratoMenor:true})); }} />;
-      case "actuaciones": return <ActuacionesPage />;
+      case "inicio": return <HomePage setActiveMenu={(m, alerta) => { setAlertaFiltro(alerta || null); setActiveMenu(m); setExpandedMenus(p => ({...p, contratoMenor:true})); }} />;
+      case "actuaciones": return <ActuacionesPage key={alertaFiltro || 'todas'} alertaInicial={alertaFiltro} onClearAlerta={() => setAlertaFiltro(null)} />;
       case "conformidades": return <ConformidadesPage />;
       case "pagos": return <PagosPage />;
       case "constancias": return <ConstanciasPage />;
