@@ -409,6 +409,8 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
         { key:"concepto", label:"Concepto", type:"input", width:150 },
         { key:"proveedor", label:"Proveedor", type:"input", width:140 },
         { key:"expSiaf", label:"N° Exp. SIAF", type:"input", width:100 },
+        { key:"tipoContratacion", label:"Tipo Contratación", type:"select", options:["(TODOS)","ASP BIENES Y SERVICIOS","TERCEROS","OTROS - DIFERENTE A ASP","ACUERDO MARCO - BIENES","ACUERDO MARCO - SERVICIOS"] },
+        { key:"estadoCronograma", label:"Cronograma", type:"select", options:["(TODOS)","CON CRONOGRAMA","SIN CRONOGRAMA"] },
         { key:"especialista", label:"Usuario SIGA", type:"select", options:["(TODOS)", ...especialistas] },
       ]} />
       {values.alerta && (
