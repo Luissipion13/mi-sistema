@@ -249,6 +249,7 @@ const HomePage = ({ setActiveMenu }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const today = new Date().toLocaleDateString("es-PE", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const mesActual = new Date().toLocaleDateString("es-PE", { month:"long" }).toUpperCase();
 
   useEffect(() => {
     api("/dashboard").then(setStats).catch(console.error).finally(() => setLoading(false));
@@ -277,7 +278,7 @@ const HomePage = ({ setActiveMenu }) => {
           { label:"Orden de Servicio", value: e.aLaFecha.ordenServicio.cantidad },
           { label:"Total", value: e.aLaFecha.total.cantidad, bold:true },
         ]} />
-        <StatsBlock title="CANTIDAD DEL MES" color="#3498db" items={[
+        <StatsBlock title={`CANTIDAD DE ${mesActual}`} color="#3498db" items={[
           { label:"Orden de Compra", value: e.delMes.ordenCompra.cantidad },
           { label:"Orden de Servicio", value: e.delMes.ordenServicio.cantidad },
           { label:"Total", value: e.delMes.total.cantidad, bold:true },
@@ -287,7 +288,7 @@ const HomePage = ({ setActiveMenu }) => {
           { label:"Orden de Servicio", value: fmt(e.aLaFecha.ordenServicio.monto) },
           { label:"Total", value: fmt(e.aLaFecha.total.monto), bold:true },
         ]} />
-        <StatsBlock title="MONTO AL MES" color="#e67e22" items={[
+        <StatsBlock title={`MONTO DE ${mesActual}`} color="#e67e22" items={[
           { label:"Orden de Compra", value: fmt(e.delMes.ordenCompra.monto) },
           { label:"Orden de Servicio", value: fmt(e.delMes.ordenServicio.monto) },
           { label:"Total", value: fmt(e.delMes.total.monto), bold:true },
