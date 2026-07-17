@@ -505,6 +505,7 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
 const CronogramaModal = ({ order, onClose, onSaved }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [ordenData, setOrdenData] = useState(null);
   const [form, setForm] = useState({
     tipoContratacion: "ASP BIENES Y SERVICIOS",
@@ -675,6 +676,28 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
       onSaved();
     } catch (err) { alert("Error al guardar: " + err.message); }
     finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    const nOrden = ordenData?.NRO_ORDEN || order.nOrden || "";
+    if (!window.confirm(
+      `⚠ ELIMINAR CRONOGRAMA — Orden ${nOrden}\n\n` +
+      `Se eliminarán ${armadas.length} armada(s) y se limpiarán los datos del cronograma ` +
+      `(tipo de contratación, plazo, fechas).\n\n` +
+      `La orden volverá a quedar SIN CRONOGRAMA.\n\n¿Desea continuar?`
+    )) return;
+
+    if (!window.confirm("Esta acción no se puede deshacer.\n\n¿Confirma la eliminación?")) return;
+
+    setDeleting(true);
+    try {
+      await api(`/ordenes/${order.id}/cronograma`, { method: "DELETE" });
+      alert("Cronograma eliminado correctamente.");
+      onSaved();
+    } catch (err) {
+      alert("No se pudo eliminar:\n\n" + err.message);
+    }
+    finally { setDeleting(false); }
   };
 
   if (!order) return null;
@@ -904,12 +927,24 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
           </div>
 
           {/* BOTONES */}
-          <div style={{ display:"flex", justifyContent:"flex-end", gap:10, borderTop:"1px solid #eee", paddingTop:14 }}>
-            <button onClick={onClose} style={{ padding:"9px 22px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
-            <button onClick={handleSave} disabled={saving}
-              style={{ padding:"9px 22px", background: saving ? "#95a5a6" : "#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: saving ? "wait" : "pointer", fontSize:13, fontWeight:700 }}>
-              {saving ? "⏳ Guardando..." : "✓ Guardar Cronograma"}
-            </button>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, borderTop:"1px solid #eee", paddingTop:14 }}>
+            <div>
+              {ordenData && ordenData.FECHA_INICIO_CRONOGRAMA && armadas.length > 0 && (
+                <button onClick={handleDelete} disabled={saving || deleting}
+                  title="Elimina el cronograma y sus armadas. No disponible si hay conformidades o pagos."
+                  style={{ padding:"9px 18px", background: deleting ? "#95a5a6" : "#c0392b", color:"#fff", border:"none",
+                    borderRadius:4, cursor: deleting ? "wait" : "pointer", fontSize:13, fontWeight:700 }}>
+                  {deleting ? "⏳ Eliminando..." : "🗑 Eliminar Cronograma"}
+                </button>
+              )}
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={onClose} style={{ padding:"9px 22px", background:"#fff", border:"1px solid #ccc", borderRadius:4, cursor:"pointer", fontSize:13 }}>✕ Cancelar</button>
+              <button onClick={handleSave} disabled={saving}
+                style={{ padding:"9px 22px", background: saving ? "#95a5a6" : "#27ae60", color:"#fff", border:"none", borderRadius:4, cursor: saving ? "wait" : "pointer", fontSize:13, fontWeight:700 }}>
+                {saving ? "⏳ Guardando..." : "✓ Guardar Cronograma"}
+              </button>
+            </div>
           </div>
         </div>
       )}
