@@ -518,8 +518,11 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
     armadaInicial: 1,
     tipoServicio: "SERVICIO EN GENERAL",
     tipoRegistro: "REGISTRO POR IMPORTES",
+    conformidadCentroUnico: false,
+    centroCostoConformidad: "",
   });
   const [armadas, setArmadas] = useState([]);
+  const [centrosCosto, setCentrosCosto] = useState([]);
 
   useEffect(() => {
     if (!order) return;
@@ -528,6 +531,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
     api(`/ordenes/${order.id}/cronograma`)
       .then(r => {
         setOrdenData(r.orden);
+        setCentrosCosto(r.centrosCosto || []);
         if (r.armadas && r.armadas.length > 0) {
           setArmadas(r.armadas);
           setForm(f => ({
@@ -543,6 +547,8 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
             armadaInicial: r.orden.ARMADA_INICIAL || 1,
             tipoServicio: r.orden.TIPO_SERVICIO || f.tipoServicio,
             tipoRegistro: r.orden.TIPO_REGISTRO || f.tipoRegistro,
+            conformidadCentroUnico: r.orden.CONFORMIDAD_OTRA_AREA === 'S',
+            centroCostoConformidad: r.orden.ID_CENTRO_COSTO_CONFORMIDAD || "",
           }));
         }
       })
@@ -658,6 +664,10 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
       alert(`⚠ No se puede guardar.\n\nLa suma de los plazos de las armadas (${plazoAsignado} días) no coincide con el Plazo registrado (${form.plazo} días).\nDiferencia: ${plazoDiff} día(s).\n\nAjuste el plazo de las armadas hasta que la suma sea igual a ${form.plazo}.`);
       return;
     }
+    if (form.conformidadCentroUnico && !form.centroCostoConformidad) {
+      alert("⚠ Seleccionó que la conformidad la emite un centro específico.\n\nDebe indicar cuál centro de costo emitirá la conformidad.");
+      return;
+    }
     setSaving(true);
     try {
       await api(`/ordenes/${order.id}/cronograma`, { method: "POST", body: JSON.stringify({ ...form, armadas }) });
@@ -744,6 +754,39 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
               <input style={S.input} type="number" min="1" value={form.armadaInicial} onChange={e => updateForm("armadaInicial", e.target.value)} />
             </div>
           </div>
+          {centrosCosto.length > 1 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12, padding:"10px 12px",
+              background:"#eef5ff", border:"1px solid #b6d4fe", borderRadius:4 }}>
+              <div style={{ flex:"1 1 220px" }}>
+                <label style={S.label}>¿Quién emite la conformidad? (*)</label>
+                <select style={S.select} value={form.conformidadCentroUnico ? "UNICO" : "TODOS"}
+                  onChange={e => {
+                    const unico = e.target.value === "UNICO";
+                    updateForm("conformidadCentroUnico", unico);
+                    if (!unico) updateForm("centroCostoConformidad", "");
+                  }}>
+                  <option value="TODOS">TODOS LOS CENTROS ({centrosCosto.length}) — cada uno conforma su parte</option>
+                  <option value="UNICO">UN CENTRO ESPECÍFICO — conforma por el total</option>
+                </select>
+              </div>
+              {form.conformidadCentroUnico && (
+                <div style={{ flex:"1 1 260px" }}>
+                  <label style={S.label}>Centro de costo que conforma (*)</label>
+                  <select style={S.select} value={form.centroCostoConformidad}
+                    onChange={e => updateForm("centroCostoConformidad", e.target.value)}>
+                    <option value="">— Seleccione —</option>
+                    {centrosCosto.map((c, i) => (
+                      <option key={i} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div style={{ flex:"1 1 100%", fontSize:10.5, color:"#31708f" }}>
+                ℹ️ Esta orden tiene {centrosCosto.length} centros de costo. El pago se habilitará cuando
+                {form.conformidadCentroUnico ? " el centro seleccionado emita su conformidad." : " todos los centros emitan su conformidad."}
+              </div>
+            </div>
+          )}
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
             <div style={{ flex:"1 1 150px" }}>
               <label style={S.label}>Tipo Servicio (*)</label>
