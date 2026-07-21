@@ -1636,6 +1636,7 @@ const PagoDetalle = ({ ordenId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [modalDoc, setModalDoc] = useState(null); // { proveido, armada }
   const [creandoProveido, setCreandoProveido] = useState(false);
+  const [eliminandoProveido, setEliminandoProveido] = useState(false);
 
   const fetchData = () => {
     setLoading(true);
@@ -1651,6 +1652,17 @@ const PagoDetalle = ({ ordenId, onBack }) => {
       fetchData();
     } catch(err) { alert("Error: " + err.message); }
     finally { setCreandoProveido(false); }
+  };
+
+  const handleEliminarProveido = async (prov) => {
+    if (!prov) return;
+    if (!window.confirm(`¿Eliminar el Cuadro de Liquidación ${prov.NUMERO_PROVEIDO}?\n\nEsto liberará la orden para que puedas eliminar el cronograma. Solo procede si no hay documentos de pago registrados.`)) return;
+    setEliminandoProveido(true);
+    try {
+      await api(`/pagos/proveido/${prov.id}`, { method:"DELETE" });
+      fetchData();
+    } catch(err) { alert("Error: " + err.message); }
+    finally { setEliminandoProveido(false); }
   };
 
   if (loading) return <div style={{ textAlign:"center", padding:60 }}>⏳ Cargando...</div>;
@@ -1693,6 +1705,12 @@ const PagoDetalle = ({ ordenId, onBack }) => {
           <button onClick={handleCrearProveido} disabled={creandoProveido}
             style={{ padding:"6px 14px", background:"#27ae60", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
             {creandoProveido ? "⏳ Generando..." : "+ Nuevo Cuadro de Liquidación"}
+          </button>
+        )}
+        {proveido && documentos.length === 0 && (
+          <button onClick={() => handleEliminarProveido(proveido)} disabled={eliminandoProveido}
+            style={{ padding:"6px 14px", background:"#e74c3c", color:"#fff", border:"none", borderRadius:4, cursor: eliminandoProveido ? "default" : "pointer", fontSize:12, fontWeight:700, opacity: eliminandoProveido ? 0.6 : 1 }}>
+            {eliminandoProveido ? "⏳ Eliminando..." : "🗑 Eliminar Cuadro de Liquidación"}
           </button>
         )}
       </div>
