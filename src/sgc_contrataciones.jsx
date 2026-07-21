@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ============================================================
 // SISTEMA DE GESTIÓN DE CONTRATACIONES — ITP RED CITE
@@ -501,6 +501,102 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
   );
 };
 
+// --- DATE PICKER (calendario a medida, formato dd/mm/yyyy) ---
+const MESES_DP = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_DP = ["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
+const parseDP = (s) => {
+  const p = String(s || "").split("/");
+  if (p.length !== 3) return null;
+  const d = parseInt(p[0], 10), m = parseInt(p[1], 10), y = parseInt(p[2], 10);
+  if (!d || !m || !y || String(p[2]).length !== 4) return null;
+  const dt = new Date(y, m - 1, d);
+  return (dt.getDate() === d && dt.getMonth() === m - 1 && dt.getFullYear() === y) ? dt : null;
+};
+const toStrDP = (dt) => `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}/${dt.getFullYear()}`;
+const sameDayDP = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const DatePicker = ({ value, onChange, width, compact }) => {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(() => parseDP(value) || new Date());
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const openCal = () => { setView(parseDP(value) || new Date()); setOpen(true); };
+
+  // Auto-formatea con slash mientras se tipea: ddmmyyyy -> dd/mm/yyyy
+  const handleType = (raw) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    let out = digits;
+    if (digits.length >= 5) out = digits.slice(0,2) + "/" + digits.slice(2,4) + "/" + digits.slice(4);
+    else if (digits.length >= 3) out = digits.slice(0,2) + "/" + digits.slice(2);
+    onChange(out);
+    const dt = parseDP(out); if (dt) setView(dt);
+  };
+
+  const pick = (dt) => { onChange(toStrDP(dt)); setOpen(false); };
+
+  const buildGrid = () => {
+    const y = view.getFullYear(), m = view.getMonth();
+    const startOffset = (new Date(y, m, 1).getDay() + 6) % 7; // lunes primero
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const prevDays = new Date(y, m, 0).getDate();
+    const cells = [];
+    for (let i = startOffset - 1; i >= 0; i--) cells.push({ d: prevDays - i, cur: false, date: new Date(y, m - 1, prevDays - i) });
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ d, cur: true, date: new Date(y, m, d) });
+    let nx = 1; while (cells.length < 42) { cells.push({ d: nx, cur: false, date: new Date(y, m + 1, nx) }); nx++; }
+    return cells;
+  };
+
+  const selected = parseDP(value);
+  const today = new Date();
+  const inputStyle = { width:"100%", padding: compact ? "2px 22px 2px 6px" : "6px 24px 6px 10px", border:"1px solid #ccc", borderRadius:4, fontSize:12, boxSizing:"border-box", textAlign: compact ? "center" : "left" };
+  const navBtn = { background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#2c3e6b", fontWeight:700, lineHeight:1, padding:"0 6px" };
+
+  return (
+    <div ref={wrapRef} style={{ position:"relative", width: width || "100%" }}>
+      <input value={value || ""} onChange={e => handleType(e.target.value)} onFocus={openCal} placeholder="dd/mm/yyyy" style={inputStyle} />
+      <span onClick={() => open ? setOpen(false) : openCal()}
+        style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", cursor:"pointer", fontSize:13, userSelect:"none" }}>📅</span>
+      {open && (
+        <div style={{ position:"absolute", zIndex:1000, top:"calc(100% + 3px)", left:0, background:"#fff", border:"1px solid #ccc", borderRadius:6, boxShadow:"0 6px 20px rgba(0,0,0,0.18)", padding:8, width:230 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+            <button type="button" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))} style={navBtn}>«</button>
+            <div style={{ fontWeight:700, color:"#2c3e6b", fontSize:13 }}>{MESES_DP[view.getMonth()]} {view.getFullYear()}</div>
+            <button type="button" onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))} style={navBtn}>»</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:2 }}>
+            {DIAS_DP.map(d => <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#95a5a6" }}>{d}</div>)}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+            {buildGrid().map((c, idx) => {
+              const isSel = sameDayDP(c.date, selected);
+              const isToday = sameDayDP(c.date, today);
+              return (
+                <div key={idx} onClick={() => pick(c.date)}
+                  style={{ textAlign:"center", fontSize:12, padding:"4px 0", borderRadius:4, cursor:"pointer",
+                    color: c.cur ? (isSel ? "#fff" : "#333") : "#c8c8c8",
+                    background: isSel ? "#2c3e6b" : (isToday ? "#eef2ff" : "transparent"),
+                    fontWeight: (isSel || isToday) ? 700 : 400 }}>
+                  {c.d}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ textAlign:"center", marginTop:6, borderTop:"1px solid #f0f0f0", paddingTop:5 }}>
+            <button type="button" onClick={() => pick(new Date())} style={{ background:"none", border:"none", color:"#2c3e6b", fontWeight:700, fontSize:12, cursor:"pointer" }}>Hoy</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- CRONOGRAMA MODAL ---
 const DEFAULT_CRONO_FORM = {
   tipoContratacion: "ASP BIENES Y SERVICIOS",
@@ -757,7 +853,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
             <div style={{ flex:"1 1 130px" }}>
               <label style={S.label}>F. Perfecc/Notifica/Acta (*)</label>
-              <input style={S.input} value={form.fechaPerfeccionamiento} onChange={e => updateForm("fechaPerfeccionamiento", e.target.value)} placeholder="dd/mm/yyyy" />
+              <DatePicker value={form.fechaPerfeccionamiento} onChange={v => updateForm("fechaPerfeccionamiento", v)} />
             </div>
             <div style={{ flex:"0 0 65px" }}>
               <label style={S.label}>Plazo (días)</label>
@@ -765,7 +861,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
             </div>
             <div style={{ flex:"1 1 110px" }}>
               <label style={S.label}>Fecha Inicio (*)</label>
-              <input style={S.input} value={form.fechaInicio} onChange={e => updateForm("fechaInicio", e.target.value)} placeholder="dd/mm/yyyy" />
+              <DatePicker value={form.fechaInicio} onChange={v => updateForm("fechaInicio", v)} />
             </div>
             <div style={{ flex:"1 1 110px" }}>
               <label style={S.label}>Fecha Fin (auto)</label>
@@ -887,12 +983,10 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                           style={{ width:55, textAlign:"center", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:12 }} />
                       </td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                        <input value={a.fechaInicio} onChange={e => updateArmada(i, "fechaInicio", e.target.value)} placeholder="dd/mm/yyyy"
-                          style={{ width:90, textAlign:"center", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:12 }} />
+                        <DatePicker value={a.fechaInicio} onChange={v => updateArmada(i, "fechaInicio", v)} width={110} compact />
                       </td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                        <input value={a.fechaFin} onChange={e => updateArmada(i, "fechaFin", e.target.value)} placeholder="dd/mm/yyyy"
-                          style={{ width:90, textAlign:"center", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:12 }} />
+                        <DatePicker value={a.fechaFin} onChange={v => updateArmada(i, "fechaFin", v)} width={110} compact />
                       </td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"right", background: esPorPorcentaje ? "#f0fdf4" : "transparent" }}>
                         {esPorPorcentaje ? (
