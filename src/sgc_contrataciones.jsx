@@ -929,7 +929,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
           {/* BOTONES */}
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, borderTop:"1px solid #eee", paddingTop:14 }}>
             <div>
-              {ordenData && ordenData.FECHA_INICIO_CRONOGRAMA && armadas.length > 0 && (
+              {ordenData && ordenData.FECHA_INICIO && armadas.length > 0 && (
                 <button onClick={handleDelete} disabled={saving || deleting}
                   title="Elimina el cronograma y sus armadas. No disponible si hay conformidades o pagos."
                   style={{ padding:"9px 18px", background: deleting ? "#95a5a6" : "#c0392b", color:"#fff", border:"none",
