@@ -502,26 +502,28 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
 };
 
 // --- CRONOGRAMA MODAL ---
+const DEFAULT_CRONO_FORM = {
+  tipoContratacion: "ASP BIENES Y SERVICIOS",
+  sistemaContratacion: "SUMA ALZADA",
+  condicionInicio: "DÍA SIGUIENTE DE PERFECCIONADO EL CONTRATO",
+  fechaPerfeccionamiento: "",
+  plazo: 30,
+  fechaInicio: "",
+  fechaFin: "",
+  totalArmadas: 1,
+  armadaInicial: 1,
+  tipoServicio: "SERVICIO EN GENERAL",
+  tipoRegistro: "REGISTRO POR IMPORTES",
+  conformidadCentroUnico: false,
+  centroCostoConformidad: "",
+};
+
 const CronogramaModal = ({ order, onClose, onSaved }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [ordenData, setOrdenData] = useState(null);
-  const [form, setForm] = useState({
-    tipoContratacion: "ASP BIENES Y SERVICIOS",
-    sistemaContratacion: "SUMA ALZADA",
-    condicionInicio: "DÍA SIGUIENTE DE PERFECCIONADO EL CONTRATO",
-    fechaPerfeccionamiento: "",
-    plazo: 30,
-    fechaInicio: "",
-    fechaFin: "",
-    totalArmadas: 1,
-    armadaInicial: 1,
-    tipoServicio: "SERVICIO EN GENERAL",
-    tipoRegistro: "REGISTRO POR IMPORTES",
-    conformidadCentroUnico: false,
-    centroCostoConformidad: "",
-  });
+  const [form, setForm] = useState(DEFAULT_CRONO_FORM);
   const [armadas, setArmadas] = useState([]);
   const [centrosCosto, setCentrosCosto] = useState([]);
 
@@ -529,6 +531,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
     if (!order) return;
     setLoading(true);
     setArmadas([]);
+    setForm(DEFAULT_CRONO_FORM);
     api(`/ordenes/${order.id}/cronograma`)
       .then(r => {
         setOrdenData(r.orden);
