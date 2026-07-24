@@ -655,6 +655,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
         setCentrosCosto(r.centrosCosto || []);
         if (r.armadas && r.armadas.length > 0) {
           setArmadas(r.armadas);
+          const tieneAreaExterna = !!r.orden.ID_AREA_CONFORMIDAD;
           setForm(f => ({
             ...f,
             tipoContratacion: r.orden.TIPO_CONTRATACION || f.tipoContratacion,
@@ -669,8 +670,17 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
             tipoServicio: r.orden.TIPO_SERVICIO || f.tipoServicio,
             tipoRegistro: r.orden.TIPO_REGISTRO || f.tipoRegistro,
             conformidadCentroUnico: r.orden.CONFORMIDAD_OTRA_AREA === 'S',
-            centroCostoConformidad: r.orden.ID_CENTRO_COSTO_CONFORMIDAD || "",
+            centroCostoConformidad: tieneAreaExterna ? "" : (r.orden.ID_CENTRO_COSTO_CONFORMIDAD || ""),
+            conformidadOtraArea: tieneAreaExterna,
+            areaConformidadId: r.orden.ID_AREA_CONFORMIDAD || "",
+            areaConformidadNombre: r.orden.NOMBRE_AREA_CONFORMIDAD || "",
           }));
+          if (tieneAreaExterna) {
+            setAreaCronoSel({ id: r.orden.ID_AREA_CONFORMIDAD, nombre: r.orden.NOMBRE_AREA_CONFORMIDAD || "", sigla: "" });
+            setAreaCronoQuery(r.orden.NOMBRE_AREA_CONFORMIDAD || "");
+          } else {
+            setAreaCronoSel(null); setAreaCronoQuery("");
+          }
         }
       })
       .catch(console.error)
@@ -1027,7 +1037,11 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
               )}
               <div style={{ flex:"1 1 100%", fontSize:10.5, color:"#31708f" }}>
                 ℹ️ Esta orden tiene {centrosCosto.length} centros de costo. El pago se habilitará cuando
-                {form.conformidadCentroUnico ? " el centro seleccionado emita su conformidad." : " todos los centros emitan su conformidad."}
+                {form.conformidadCentroUnico
+                  ? (form.conformidadOtraArea
+                      ? " el área usuaria seleccionada emita la conformidad por el total."
+                      : " el centro seleccionado emita su conformidad por el total.")
+                  : " todos los centros emitan su conformidad."}
               </div>
             </div>
           )}
