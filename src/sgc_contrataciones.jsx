@@ -665,36 +665,61 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   };
   const toStr = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
-  // Auto-calcular fecha fin cuando cambia fecha inicio y plazo
-  useEffect(() => {
-    if (form.fechaInicio && form.plazo) {
-      const d = toDate(form.fechaInicio);
-      if (d) { d.setDate(d.getDate() + parseInt(form.plazo) - 1); updateForm("fechaFin", toStr(d)); }
-    }
-  }, [form.fechaInicio, form.plazo]);
+  // Recalcula las fechas de las cuotas en cadena:
+  // la 1ra arranca en la Fecha Inicio del cronograma; cada cuota siguiente
+  // empieza al día siguiente del fin de la anterior. El plazo lo pone el usuario por cuota.
+  const recalcCadena = (arr) => {
+    let ini = toDate(form.fechaInicio);
+    return arr.map((a) => {
+      const plazo = parseInt(a.plazo) || 0;
+      if (!ini) return { ...a, fechaInicio: "", fechaFin: "" };
+      const fechaInicio = toStr(ini);
+      if (plazo > 0) {
+        const fin = new Date(ini); fin.setDate(fin.getDate() + plazo - 1);
+        const next = new Date(fin); next.setDate(next.getDate() + 1);
+        ini = next;
+        return { ...a, fechaInicio, fechaFin: toStr(fin) };
+      }
+      ini = null; // sin plazo no se puede encadenar hacia adelante
+      return { ...a, fechaInicio, fechaFin: "" };
+    });
+  };
 
-  // Generar armadas prorateadas al hacer clic en botón
+  // El Plazo total y la Fecha Fin de arriba son derivados de las cuotas (solo lectura)
+  useEffect(() => {
+    if (armadas.length > 0) {
+      const plazoTotal = armadas.reduce((s, a) => s + (parseInt(a.plazo) || 0), 0);
+      const ultimaFin = armadas[armadas.length - 1].fechaFin || "";
+      setForm(f => ({ ...f, plazo: plazoTotal, fechaFin: ultimaFin }));
+    } else {
+      setForm(f => ({ ...f, plazo: "", fechaFin: "" }));
+    }
+  }, [armadas]);
+
+  // Al cambiar la Fecha Inicio del cronograma, reencadenar las cuotas existentes
+  useEffect(() => {
+    setArmadas(prev => (prev.length ? recalcCadena(prev) : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.fechaInicio]);
+
+  // Generar armadas al hacer clic en botón (plazo en blanco; el usuario lo pone por cuota)
   const calcularArmadas = () => {
     const n = parseInt(form.totalArmadas) || 1;
-    const plazoTotal = parseInt(form.plazo) || 30;
-    const plazoPorArmada = Math.floor(plazoTotal / n);
     const montoTotal = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order.monto) || 0;
     const base = Math.round((montoTotal / n) * 100) / 100;
     const pctBase = Math.round((100 / n) * 100) / 100;
-    const fechaBase = toDate(form.fechaInicio);
     const nuevas = [];
     for (let i = 0; i < n; i++) {
       const isLast = i === n - 1;
-      const plazoArmada = isLast ? (plazoTotal - plazoPorArmada * (n - 1)) : plazoPorArmada;
       const montoArmada = isLast ? Math.round((montoTotal - base * (n - 1)) * 100) / 100 : base;
       const porcentaje = isLast ? Math.round((100 - pctBase * (n - 1)) * 100) / 100 : pctBase;
-      let fi = "", ff = "";
-      if (fechaBase) {
-        const ini = new Date(fechaBase); ini.setDate(ini.getDate() + i * plazoPorArmada);
-        const fin = new Date(ini); fin.setDate(fin.getDate() + plazoArmada - 1);
-        fi = toStr(ini); ff = toStr(fin);
-      }
-      nuevas.push({ cuota: i + parseInt(form.armadaInicial || 1), plazo: plazoArmada, fechaInicio: fi, fechaFin: ff, porcentaje, montoArmada });
+      nuevas.push({
+        cuota: i + parseInt(form.armadaInicial || 1),
+        plazo: "",                                        // en blanco: lo asigna el usuario
+        fechaInicio: i === 0 ? (form.fechaInicio || "") : "", // la 1ra arranca en la fecha inicio
+        fechaFin: "",
+        porcentaje, montoArmada
+      });
     }
     setArmadas(nuevas);
   };
@@ -712,17 +737,21 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
       if (key === "porcentaje") {
         return next.map(a => ({ ...a, montoArmada: Math.round((parseFloat(a.porcentaje) / 100 * montoTotal) * 100) / 100 }));
       }
+      // Si cambia el plazo de una cuota, reencadenar todas las fechas
+      if (key === "plazo") {
+        return recalcCadena(next);
+      }
       return next;
     });
   };
 
   const esPorPorcentaje = form.tipoRegistro === "REGISTRO POR PORCENTAJE";
+  const esOCAM = form.condicionInicio === "PLAZO DE EJECUCIÓN DE LA OCAM";
 
-  // Ajusta la última armada para que la suma cuadre exactamente con el monto/porcentaje y plazo total
+  // Ajusta la última armada para que la suma de montos cuadre exactamente con el monto de la orden
   const ajustarRedondeo = () => {
     if (armadas.length === 0) return;
     const montoT = ordenData ? parseFloat(ordenData.MONTO_OS) || 0 : parseFloat(order.monto) || 0;
-    const plazoT = parseInt(form.plazo) || 0;
     setArmadas(prev => {
       const next = [...prev];
       const last = next.length - 1;
@@ -735,8 +764,6 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
         const montoAjustado = Math.round((montoT - sumMontoOtros) * 100) / 100;
         next[last] = { ...next[last], montoArmada: montoAjustado, porcentaje: montoT > 0 ? Math.round((montoAjustado / montoT * 100) * 100) / 100 : 0 };
       }
-      const sumPlazoOtros = next.slice(0, last).reduce((s, a) => s + (parseInt(a.plazo) || 0), 0);
-      next[last] = { ...next[last], plazo: plazoT - sumPlazoOtros };
       return next;
     });
   };
@@ -748,20 +775,22 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   const plazoDiff = (parseInt(form.plazo) || 0) - plazoAsignado;
 
   const handleSave = async () => {
-    if (!form.fechaPerfeccionamiento || !form.fechaInicio) {
-      alert("Complete los campos obligatorios: Fecha Perfeccionamiento y Fecha Inicio");
+    if ((!esOCAM && !form.fechaPerfeccionamiento) || !form.fechaInicio) {
+      alert(esOCAM
+        ? "Complete la Fecha Inicio."
+        : "Complete los campos obligatorios: Fecha Perfeccionamiento y Fecha Inicio");
       return;
     }
     if (armadas.length === 0) {
       alert("Debe generar las armadas antes de guardar. Haga clic en 'Generar Armadas'.");
       return;
     }
-    if (Math.abs(saldoPendiente) > 0.005) {
-      alert(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
+    if (armadas.some(a => !(parseInt(a.plazo) > 0))) {
+      alert("⚠ No se puede guardar.\n\nCada cuota debe tener un plazo (en días) mayor a 0. Complete el plazo de todas las cuotas.");
       return;
     }
-    if (plazoDiff !== 0) {
-      alert(`⚠ No se puede guardar.\n\nLa suma de los plazos de las armadas (${plazoAsignado} días) no coincide con el Plazo registrado (${form.plazo} días).\nDiferencia: ${plazoDiff} día(s).\n\nAjuste el plazo de las armadas hasta que la suma sea igual a ${form.plazo}.`);
+    if (Math.abs(saldoPendiente) > 0.005) {
+      alert(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
       return;
     }
     if (form.conformidadCentroUnico && !form.centroCostoConformidad) {
@@ -843,21 +872,29 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
             <div style={{ flex:"2 1 220px" }}>
               <label style={S.label}>Condición de Inicio (*)</label>
               <select style={S.select} value={form.condicionInicio} onChange={e => updateForm("condicionInicio", e.target.value)}>
+                <option>PERFECCIONADO EL CONTRATO</option>
                 <option>DÍA SIGUIENTE DE PERFECCIONADO EL CONTRATO</option>
                 <option>DÍA SIGUIENTE DE LA NOTIFICACIÓN DE LA ORDEN</option>
-                <option>DESDE LA FECHA DE SUSCRIPCIÓN DEL CONTRATO</option>
+                <option>DESDE EL DÍA DE NOTIFICADA LA ORDEN</option>
+                <option>PLAZO DE EJECUCIÓN DE LA OCAM</option>
                 <option>FECHA DETERMINADA</option>
               </select>
             </div>
           </div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
             <div style={{ flex:"1 1 130px" }}>
-              <label style={S.label}>F. Perfecc/Notifica/Acta (*)</label>
-              <DatePicker value={form.fechaPerfeccionamiento} onChange={v => updateForm("fechaPerfeccionamiento", v)} />
+              <label style={S.label}>F. Perfecc/Notifica/Acta {esOCAM ? "" : "(*)"}</label>
+              {esOCAM ? (
+                <input value="" readOnly placeholder="No aplica (OCAM)"
+                  style={{ ...S.input, background:"#e9ecef", color:"#999" }} />
+              ) : (
+                <DatePicker value={form.fechaPerfeccionamiento} onChange={v => updateForm("fechaPerfeccionamiento", v)} />
+              )}
             </div>
             <div style={{ flex:"0 0 65px" }}>
               <label style={S.label}>Plazo (días)</label>
-              <input style={S.input} type="number" min="1" value={form.plazo} onChange={e => updateForm("plazo", e.target.value)} />
+              <input value={form.plazo || ""} readOnly title="Se calcula sumando el plazo de las cuotas"
+                style={{ ...S.input, background:"#f0f0f0", textAlign:"center" }} />
             </div>
             <div style={{ flex:"1 1 110px" }}>
               <label style={S.label}>Fecha Inicio (*)</label>
@@ -978,15 +1015,15 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center", color:"#7f8c8d" }}>{i + 1}</td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center", fontWeight:600 }}>{String(a.cuota).padStart(3,'0')}</td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                        <input type="number" value={a.plazo} min="1"
-                          onChange={e => updateArmada(i, "plazo", parseInt(e.target.value) || 0)}
+                        <input type="number" value={a.plazo} min="1" placeholder="—"
+                          onChange={e => updateArmada(i, "plazo", e.target.value)}
                           style={{ width:55, textAlign:"center", border:"1px solid #ccc", borderRadius:3, padding:"2px 4px", fontSize:12 }} />
                       </td>
-                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                        <DatePicker value={a.fechaInicio} onChange={v => updateArmada(i, "fechaInicio", v)} width={110} compact />
+                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center", color: a.fechaInicio ? "#333" : "#c0c0c0" }}>
+                        {a.fechaInicio || "—"}
                       </td>
-                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                        <DatePicker value={a.fechaFin} onChange={v => updateArmada(i, "fechaFin", v)} width={110} compact />
+                      <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"center", color: a.fechaFin ? "#333" : "#c0c0c0" }}>
+                        {a.fechaFin || "—"}
                       </td>
                       <td style={{ padding:"5px 8px", border:"1px solid #eee", textAlign:"right", background: esPorPorcentaje ? "#f0fdf4" : "transparent" }}>
                         {esPorPorcentaje ? (
