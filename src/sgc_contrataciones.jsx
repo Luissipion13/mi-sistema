@@ -612,6 +612,10 @@ const DEFAULT_CRONO_FORM = {
   tipoRegistro: "REGISTRO POR IMPORTES",
   conformidadCentroUnico: false,
   centroCostoConformidad: "",
+  conformidadOtraArea: false,
+  areaConformidadId: "",
+  areaConformidadNombre: "",
+  areaConformidadSigla: "",
 };
 
 const CronogramaModal = ({ order, onClose, onSaved }) => {
@@ -622,6 +626,23 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   const [form, setForm] = useState(DEFAULT_CRONO_FORM);
   const [armadas, setArmadas] = useState([]);
   const [centrosCosto, setCentrosCosto] = useState([]);
+  // Buscador de área usuaria (SIGA) que dará la conformidad
+  const [areaCronoQuery, setAreaCronoQuery] = useState("");
+  const [areaCronoOpciones, setAreaCronoOpciones] = useState([]);
+  const [areaCronoSel, setAreaCronoSel] = useState(null);
+  const [areaCronoDropOpen, setAreaCronoDropOpen] = useState(false);
+
+  // Buscar áreas usuarias con debounce (solo cuando "otra área" está activo)
+  useEffect(() => {
+    if (!form.conformidadOtraArea) return;
+    const t = setTimeout(() => {
+      api(`/areas-usuarias?q=${encodeURIComponent(areaCronoQuery)}`)
+        .then(data => { setAreaCronoOpciones(data); if (data.length > 0) setAreaCronoDropOpen(true); })
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaCronoQuery, form.conformidadOtraArea]);
 
   useEffect(() => {
     if (!order) return;
@@ -793,7 +814,11 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
       alert(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
       return;
     }
-    if (form.conformidadCentroUnico && !form.centroCostoConformidad) {
+    if (form.conformidadCentroUnico && form.conformidadOtraArea && !form.areaConformidadId) {
+      alert("⚠ Indicó que la conformidad la da otra área.\n\nBusque y seleccione el área usuaria que emitirá la conformidad.");
+      return;
+    }
+    if (form.conformidadCentroUnico && !form.conformidadOtraArea && !form.centroCostoConformidad) {
       alert("⚠ Seleccionó que la conformidad la emite un centro específico.\n\nDebe indicar cuál centro de costo emitirá la conformidad.");
       return;
     }
@@ -929,15 +954,75 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                 </select>
               </div>
               {form.conformidadCentroUnico && (
-                <div style={{ flex:"1 1 260px" }}>
-                  <label style={S.label}>Centro de costo que conforma (*)</label>
-                  <select style={S.select} value={form.centroCostoConformidad}
-                    onChange={e => updateForm("centroCostoConformidad", e.target.value)}>
-                    <option value="">— Seleccione —</option>
-                    {centrosCosto.map((c, i) => (
-                      <option key={i} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>
-                    ))}
-                  </select>
+                <div style={{ flex:"1 1 100%" }}>
+                  <div style={{ marginBottom:8 }}>
+                    <label style={S.label}>¿La conformidad la da otra área (no un centro de la orden)?</label>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button type="button" onClick={() => {
+                          updateForm("conformidadOtraArea", false);
+                          updateForm("areaConformidadId", ""); updateForm("areaConformidadNombre", ""); updateForm("areaConformidadSigla", "");
+                          setAreaCronoSel(null); setAreaCronoQuery("");
+                        }}
+                        style={{ padding:"5px 18px", fontSize:12, borderRadius:4, border:"2px solid", cursor:"pointer",
+                          borderColor: !form.conformidadOtraArea ? "#2563eb" : "#ccc", background: !form.conformidadOtraArea ? "#2563eb" : "#fff",
+                          color: !form.conformidadOtraArea ? "#fff" : "#333", fontWeight:700 }}>NO</button>
+                      <button type="button" onClick={() => {
+                          updateForm("conformidadOtraArea", true);
+                          updateForm("centroCostoConformidad", "");
+                          api(`/areas-usuarias?q=`).then(data => setAreaCronoOpciones(data)).catch(() => {});
+                        }}
+                        style={{ padding:"5px 18px", fontSize:12, borderRadius:4, border:"2px solid", cursor:"pointer",
+                          borderColor: form.conformidadOtraArea ? "#e67e22" : "#ccc", background: form.conformidadOtraArea ? "#e67e22" : "#fff",
+                          color: form.conformidadOtraArea ? "#fff" : "#333", fontWeight:700 }}>SÍ</button>
+                    </div>
+                  </div>
+
+                  {!form.conformidadOtraArea ? (
+                    <div>
+                      <label style={S.label}>Centro de costo que conforma (*)</label>
+                      <select style={S.select} value={form.centroCostoConformidad}
+                        onChange={e => updateForm("centroCostoConformidad", e.target.value)}>
+                        <option value="">— Seleccione —</option>
+                        {centrosCosto.map((c, i) => (
+                          <option key={i} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div style={{ position:"relative" }}>
+                      <label style={S.label}>Área usuaria que dará la conformidad (*)</label>
+                      <input style={S.input} value={areaCronoQuery}
+                        placeholder="Escriba nombre o sigla (ej: OTI, UA, CITE...)"
+                        onChange={e => { setAreaCronoQuery(e.target.value); setAreaCronoSel(null);
+                          updateForm("areaConformidadId", ""); updateForm("areaConformidadNombre", ""); updateForm("areaConformidadSigla", ""); }}
+                        onFocus={() => {
+                          if (areaCronoOpciones.length > 0) setAreaCronoDropOpen(true);
+                          else api(`/areas-usuarias?q=`).then(data => { setAreaCronoOpciones(data); setAreaCronoDropOpen(true); }).catch(() => {});
+                        }}
+                        onBlur={() => setTimeout(() => setAreaCronoDropOpen(false), 200)} />
+                      {areaCronoDropOpen && areaCronoOpciones.length > 0 && (
+                        <div style={{ position:"absolute", zIndex:999, background:"#fff", border:"1px solid #ccc",
+                          borderRadius:4, maxHeight:200, overflowY:"auto", width:"100%", boxShadow:"0 4px 12px rgba(0,0,0,0.15)" }}>
+                          {areaCronoOpciones.map(a => (
+                            <div key={a.id} onClick={() => {
+                                setAreaCronoSel(a); setAreaCronoQuery(a.nombre); setAreaCronoDropOpen(false);
+                                updateForm("areaConformidadId", a.id); updateForm("areaConformidadNombre", a.nombre); updateForm("areaConformidadSigla", a.sigla);
+                              }}
+                              style={{ padding:"7px 10px", fontSize:12, cursor:"pointer", borderBottom:"1px solid #f0f0f0" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#eef2f7"}
+                              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                              <strong>{a.sigla}</strong> — {a.nombre}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {areaCronoSel && (
+                        <div style={{ marginTop:5, fontSize:11, color:"#065f46", background:"#d1fae5", padding:"5px 10px", borderRadius:4, fontWeight:600 }}>
+                          ✓ <strong>{areaCronoSel.sigla}</strong> — {areaCronoSel.nombre}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <div style={{ flex:"1 1 100%", fontSize:10.5, color:"#31708f" }}>
