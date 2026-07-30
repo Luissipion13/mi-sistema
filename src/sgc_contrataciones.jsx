@@ -1,4 +1,39 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import Swal from "sweetalert2";
+
+// ============================================================
+// ALERTAS TEMÁTICAS (SweetAlert2) — colores e iconos del SGC
+// ============================================================
+const SGC_AZUL = "#2c3e6b";
+const swalBase = Swal.mixin({
+  confirmButtonColor: SGC_AZUL,
+  cancelButtonColor: "#95a5a6",
+  buttonsStyling: true,
+  heightAuto: false,
+});
+const _br = (m) => String(m == null ? "" : m).replace(/\n/g, "<br>");
+const _iconFor = (m) => {
+  const s = String(m || "").toLowerCase();
+  if (/no se pudo|no se puede|error|excede|no coincide|no corresponde|no existe|falta /.test(s)) return "error";
+  if (/exitosa|exitoso|correctamente|registrad|actualizad|eliminad|guardad/.test(s)) return "success";
+  return "warning";
+};
+// Reemplaza a notify()
+const notify = (msg, icon) => swalBase.fire({ icon: icon || _iconFor(msg), html: _br(msg), confirmButtonText: "Aceptar" });
+// Reemplaza a confirm() — devuelve Promise<boolean>
+const confirmDialog = async (msg, opts = {}) => {
+  const r = await swalBase.fire({
+    icon: opts.icon || "question",
+    html: _br(msg),
+    showCancelButton: true,
+    confirmButtonText: opts.confirmText || "Sí, continuar",
+    cancelButtonText: opts.cancelText || "Cancelar",
+    reverseButtons: true,
+    focusCancel: true,
+  });
+  return r.isConfirmed;
+};
+
 
 // ============================================================
 // SISTEMA DE GESTIÓN DE CONTRATACIONES — ITP RED CITE
@@ -329,7 +364,7 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
   useEffect(() => { api("/ordenes/especialistas").then(setEspecialistas).catch(() => {}); }, []);
 
   const handleSync = async () => {
-    if (!confirm("¿Seguro de realizar la actualización automática de los registros?\nEsto puede tomar algunos minutos.\n\nIMPORTANTE: Solo se están migrando las órdenes que cuenten con Expediente SIAF aprobado en el SIGA.")) return;
+    if (!await confirmDialog("¿Seguro de realizar la actualización automática de los registros?\nEsto puede tomar algunos minutos.\n\nIMPORTANTE: Solo se están migrando las órdenes que cuenten con Expediente SIAF aprobado en el SIGA.")) return;
     setSyncing(true); setSyncResult(null);
     try {
       const token = localStorage.getItem("sgc_token");
@@ -347,8 +382,8 @@ const ActuacionesPage = ({ alertaInicial = null, onClearAlerta = () => {} }) => 
       setPage(1);
       fetchData();
     } catch (err) {
-      if (err.name === 'AbortError') alert("El sync tardó más de 3 minutos. Verifique la consola del servidor.");
-      else alert("Error al sincronizar: " + err.message);
+      if (err.name === 'AbortError') notify("El sync tardó más de 3 minutos. Verifique la consola del servidor.");
+      else notify("Error al sincronizar: " + err.message);
     }
     finally { setSyncing(false); }
   };
@@ -807,58 +842,58 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
 
   const handleSave = async () => {
     if ((!esOCAM && !form.fechaPerfeccionamiento) || !form.fechaInicio) {
-      alert(esOCAM
+      notify(esOCAM
         ? "Complete la Fecha Inicio."
         : "Complete los campos obligatorios: Fecha Perfeccionamiento y Fecha Inicio");
       return;
     }
     if (armadas.length === 0) {
-      alert("Debe generar las armadas antes de guardar. Haga clic en 'Generar Armadas'.");
+      notify("Debe generar las armadas antes de guardar. Haga clic en 'Generar Armadas'.");
       return;
     }
     if (armadas.some(a => !(parseInt(a.plazo) > 0))) {
-      alert("⚠ No se puede guardar.\n\nCada cuota debe tener un plazo (en días) mayor a 0. Complete el plazo de todas las cuotas.");
+      notify("⚠ No se puede guardar.\n\nCada cuota debe tener un plazo (en días) mayor a 0. Complete el plazo de todas las cuotas.");
       return;
     }
     if (Math.abs(saldoPendiente) > 0.005) {
-      alert(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
+      notify(`⚠ No se puede guardar.\n\nEl monto asignado (S/ ${fmt(montoAsignado)}) no coincide con el monto de la orden (S/ ${fmt(montoTotal)}).\nSaldo pendiente: S/ ${fmt(saldoPendiente)}\n\nAjuste los montos/porcentajes de las armadas hasta que el saldo sea S/ 0.00.`);
       return;
     }
     if (form.conformidadCentroUnico && form.conformidadOtraArea && !form.areaConformidadId) {
-      alert("⚠ Indicó que la conformidad la da otra área.\n\nBusque y seleccione el área usuaria que emitirá la conformidad.");
+      notify("⚠ Indicó que la conformidad la da otra área.\n\nBusque y seleccione el área usuaria que emitirá la conformidad.");
       return;
     }
     if (form.conformidadCentroUnico && !form.conformidadOtraArea && !form.centroCostoConformidad) {
-      alert("⚠ Seleccionó que la conformidad la emite un centro específico.\n\nDebe indicar cuál centro de costo emitirá la conformidad.");
+      notify("⚠ Seleccionó que la conformidad la emite un centro específico.\n\nDebe indicar cuál centro de costo emitirá la conformidad.");
       return;
     }
     setSaving(true);
     try {
       await api(`/ordenes/${order.id}/cronograma`, { method: "POST", body: JSON.stringify({ ...form, armadas }) });
-      alert("Cronograma registrado exitosamente.");
+      notify("Cronograma registrado exitosamente.");
       onSaved();
-    } catch (err) { alert("Error al guardar: " + err.message); }
+    } catch (err) { notify("Error al guardar: " + err.message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     const nOrden = ordenData?.NRO_ORDEN || order.nOrden || "";
-    if (!window.confirm(
+    if (!await confirmDialog(
       `⚠ ELIMINAR CRONOGRAMA — Orden ${nOrden}\n\n` +
       `Se eliminarán ${armadas.length} armada(s) y se limpiarán los datos del cronograma ` +
       `(tipo de contratación, plazo, fechas).\n\n` +
       `La orden volverá a quedar SIN CRONOGRAMA.\n\n¿Desea continuar?`
     )) return;
 
-    if (!window.confirm("Esta acción no se puede deshacer.\n\n¿Confirma la eliminación?")) return;
+    if (!await confirmDialog("Esta acción no se puede deshacer.\n\n¿Confirma la eliminación?")) return;
 
     setDeleting(true);
     try {
       await api(`/ordenes/${order.id}/cronograma`, { method: "DELETE" });
-      alert("Cronograma eliminado correctamente.");
+      notify("Cronograma eliminado correctamente.");
       onSaved();
     } catch (err) {
-      alert("No se pudo eliminar:\n\n" + err.message);
+      notify("No se pudo eliminar:\n\n" + err.message);
     }
     finally { setDeleting(false); }
   };
@@ -1321,9 +1356,9 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
       : "Seleccione un centro de costo...");
 
   const handleSave = async () => {
-    if (!centroCostoSel) { alert("Debe seleccionar un Centro de Costo"); return; }
-    if (otraArea && !areaSel) { alert("Debe seleccionar el área que emite la conformidad"); return; }
-    if (!form.fechaConformidad || !form.fechaEntrega) { alert("Complete Fecha Conformidad y Fecha Entrega"); return; }
+    if (!centroCostoSel) { notify("Debe seleccionar un Centro de Costo"); return; }
+    if (otraArea && !areaSel) { notify("Debe seleccionar el área que emite la conformidad"); return; }
+    if (!form.fechaConformidad || !form.fechaEntrega) { notify("Complete Fecha Conformidad y Fecha Entrega"); return; }
     setSaving(true);
     try {
       if (modoEdicion) {
@@ -1334,7 +1369,7 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
           idAreaOtraConformidad: otraArea && areaSel ? areaSel.id : null,
           ...form, monto: montoTotal, detalles
         })});
-        alert("Conformidad actualizada exitosamente.");
+        notify("Conformidad actualizada exitosamente.");
       } else {
         await api("/conformidades", { method:"POST", body: JSON.stringify({
           idOrdenArmada: armada.id, secFunc: "0000",
@@ -1344,10 +1379,10 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
           idAreaOtraConformidad: otraArea && areaSel ? areaSel.id : null,
           ...form, monto: montoTotal, detalles
         })});
-        alert("Conformidad registrada exitosamente.");
+        notify("Conformidad registrada exitosamente.");
       }
       onSaved();
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { notify("Error: " + err.message); }
     finally { setSaving(false); }
   };
 
@@ -1783,19 +1818,19 @@ const PagoDocumentoModal = ({ proveido, armada, conformidades, onClose, onSaved 
   const tiposDocumento = ["BOLETA DE VENTA","DESCUENTO DE PRESTACION NO EJECUTADA","DESCUENTO POR CONTRATO","DOCUMENTO DE COBRANZA","FACTURA","IMPUESTO","NOTA DE CRÉDITO","NOTA DE DEBITO","RECIBO","RECIBO POR HONORARIO","RETENCIÓN GARANTÍA","TICKET"];
 
   const handleSave = async () => {
-    if (!form.idTipoDocumento) { alert("Seleccione el tipo de documento."); return; }
-    if (!form.numeroDocumento) { alert("Ingrese el número de documento."); return; }
-    if (!form.fechaDocumento)  { alert("Ingrese la fecha del documento."); return; }
-    if (!form.monto || parseFloat(form.monto) <= 0) { alert("Ingrese un monto válido."); return; }
+    if (!form.idTipoDocumento) { notify("Seleccione el tipo de documento."); return; }
+    if (!form.numeroDocumento) { notify("Ingrese el número de documento."); return; }
+    if (!form.fechaDocumento)  { notify("Ingrese la fecha del documento."); return; }
+    if (!form.monto || parseFloat(form.monto) <= 0) { notify("Ingrese un monto válido."); return; }
     setSaving(true);
     try {
       await api(`/pagos/${proveido.id}/documentos`, {
         method: "POST",
         body: JSON.stringify({ ...form, monto: parseFloat(form.monto) }),
       });
-      alert("Documento registrado exitosamente.");
+      notify("Documento registrado exitosamente.");
       onSaved();
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { notify("Error: " + err.message); }
     finally { setSaving(false); }
   };
 
@@ -1875,23 +1910,23 @@ const PagoDetalle = ({ ordenId, onBack }) => {
   useEffect(() => { fetchData(); }, [ordenId]);
 
   const handleCrearProveido = async () => {
-    if (!window.confirm("¿Generar el Cuadro de Liquidación para esta orden?")) return;
+    if (!await confirmDialog("¿Generar el Cuadro de Liquidación para esta orden?")) return;
     setCreandoProveido(true);
     try {
       await api(`/pagos/${ordenId}/proveido`, { method:"POST" });
       fetchData();
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { notify("Error: " + err.message); }
     finally { setCreandoProveido(false); }
   };
 
   const handleEliminarProveido = async (prov) => {
     if (!prov) return;
-    if (!window.confirm(`¿Eliminar el Cuadro de Liquidación ${prov.NUMERO_PROVEIDO}?\n\nEsto liberará la orden para que puedas eliminar el cronograma. Solo procede si no hay documentos de pago registrados.`)) return;
+    if (!await confirmDialog(`¿Eliminar el Cuadro de Liquidación ${prov.NUMERO_PROVEIDO}?\n\nEsto liberará la orden para que puedas eliminar el cronograma. Solo procede si no hay documentos de pago registrados.`)) return;
     setEliminandoProveido(true);
     try {
       await api(`/pagos/proveido/${prov.id}`, { method:"DELETE" });
       fetchData();
-    } catch(err) { alert("Error: " + err.message); }
+    } catch(err) { notify("Error: " + err.message); }
     finally { setEliminandoProveido(false); }
   };
 
@@ -1997,11 +2032,11 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                     <td style={{ padding:"6px 8px", border:"1px solid #eee", fontSize:11 }}>{d.conformidad||"-"}</td>
                     <td style={{ padding:"6px 8px", border:"1px solid #eee", textAlign:"center" }}>
                       <button onClick={async () => {
-                        if (!window.confirm(`¿Eliminar el documento ${d.numeroDocumento}?`)) return;
+                        if (!await confirmDialog(`¿Eliminar el documento ${d.numeroDocumento}?`)) return;
                         try {
                           await api(`/pagos/documentos/${d.id}`, { method:"DELETE" });
                           fetchData();
-                        } catch(err) { alert("Error: " + err.message); }
+                        } catch(err) { notify("Error: " + err.message); }
                       }}
                         title="Eliminar documento"
                         style={{ background:"#e74c3c", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"3px 8px", fontSize:13 }}>
@@ -2042,7 +2077,7 @@ const PagoDetalle = ({ ordenId, onBack }) => {
                 a.download = `CuadroLiquidacion_${orden.NRO_ORDEN?.trim()}.pdf`;
                 a.click();
                 URL.revokeObjectURL(url);
-              } catch(err) { alert("Error: " + err.message); }
+              } catch(err) { notify("Error: " + err.message); }
             }}
               style={{ padding:"7px 16px", background:"#e74c3c", color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:700 }}>
               🖨️ Cuadro de Liquidación PDF
@@ -2203,7 +2238,7 @@ const PagosPage = () => {
         <>
           <DataTable columns={columns} data={data} onRowClick={row => setSelectedOrden(row.id)}
             actions={[
-              { icon:"⚠️", label:"Alertas", onClick: row => alert(`Orden ${row.nOrden}`) },
+              { icon:"⚠️", label:"Alertas", onClick: row => notify(`Orden ${row.nOrden}`) },
               { icon:"📋", label:"Ver detalle", onClick: row => setSelectedOrden(row.id) },
             ]} />
           <div style={{ display:"flex", justifyContent:"center", gap:8, padding:"12px 0", fontSize:12 }}>
@@ -2238,7 +2273,7 @@ const ReportesPage = () => {
   ];
 
   const handleGenerar = async () => {
-    if (!tipo) { alert('Seleccione un tipo de reporte.'); return; }
+    if (!tipo) { notify('Seleccione un tipo de reporte.'); return; }
     setLoading(true);
     try {
       const token = localStorage.getItem('sgc_token');
@@ -2254,7 +2289,7 @@ const ReportesPage = () => {
       a.download = `Reporte_${tipo}_${Date.now()}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch(err) { alert('Error: ' + err.message); }
+    } catch(err) { notify('Error: ' + err.message); }
     finally { setLoading(false); }
   };
 
