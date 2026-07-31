@@ -1334,6 +1334,15 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
       if (u?.nombre) upd("elaboradoPor", u.nombre);
     } catch {}
   }, [modoEdicion]);
+
+  // Nombre Responsable = responsable del centro de costo (SIGA)
+  useEffect(() => {
+    const cod = centroCostoSel?.idCentroCosto;
+    if (!cod) { upd("nombreResponsable", ""); return; }
+    api(`/responsable-centro?centro=${encodeURIComponent(cod)}`)
+      .then(d => upd("nombreResponsable", d.responsable || ""))
+      .catch(() => upd("nombreResponsable", ""));
+  }, [centroCostoSel]);
   // Buscar áreas usuarias con debounce
   useEffect(() => {
     if (!otraArea) return;
