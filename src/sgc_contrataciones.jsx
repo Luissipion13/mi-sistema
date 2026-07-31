@@ -1,28 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import Swal from "sweetalert2";
-
-// ============================================================
-// ALERTAS TEMÁTICAS (SweetAlert2) — colores e iconos del SGC
-// ============================================================
-const SGC_AZUL = "#2c3e6b";
-const swalBase = Swal.mixin({
-  confirmButtonColor: SGC_AZUL,
-  cancelButtonColor: "#95a5a6",
-  buttonsStyling: true,
-  heightAuto: false,
-});
-const _br = (m) => String(m == null ? "" : m).replace(/\n/g, "<br>");
-const _iconFor = (m) => {
-  const s = String(m || "").toLowerCase();
-  if (/no se pudo|no se puede|error|excede|no coincide|no corresponde|no existe|falta /.test(s)) return "error";
-  if (/exitosa|exitoso|correctamente|registrad|actualizad|eliminad|guardad/.test(s)) return "success";
-  return "warning";
-};
-// Reemplaza a notify()
-const notify = (msg, icon) => swalBase.fire({ icon: icon || _iconFor(msg), html: _br(msg), confirmButtonText: "Aceptar" });
-// Reemplaza a confirm() — devuelve Promise<boolean>
-const confirmDialog = async (msg, opts = {}) => {
-  const r = await swalBase.fire({
+const r = await swalBase.fire({
     icon: opts.icon || "question",
     html: _br(msg),
     showCancelButton: true,
@@ -1326,7 +1302,14 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
       }
     }
   }, [form.fechaEntrega, armada]);
-
+  // Elaborado por = usuario logueado (solo en modo nuevo)
+  useEffect(() => {
+    if (modoEdicion) return;
+    try {
+      const u = JSON.parse(localStorage.getItem("sgc_user") || "null");
+      if (u?.nombre) upd("elaboradoPor", u.nombre);
+    } catch {}
+  }, [modoEdicion]);
   // Buscar áreas usuarias con debounce
   useEffect(() => {
     if (!otraArea) return;
@@ -1484,8 +1467,8 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
         </div>
 
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Conformidad (*)</label><input style={S.input} value={form.fechaConformidad} onChange={e=>upd("fechaConformidad",e.target.value)} placeholder="dd/mm/yyyy" /></div>
-          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Entrega Producto (*)</label><input style={S.input} value={form.fechaEntrega} onChange={e=>upd("fechaEntrega",e.target.value)} placeholder="dd/mm/yyyy" /></div>
+          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Conformidad (*)</label><DatePicker value={form.fechaConformidad} onChange={v=>upd("fechaConformidad",v)} /></div>
+          <div style={{ flex:"1 1 120px" }}><label style={S.label}>F. Entrega Producto (*)</label><DatePicker value={form.fechaEntrega} onChange={v=>upd("fechaEntrega",v)} /></div>
           <div style={{ flex:"0 0 80px" }}><label style={S.label}>Días Retraso</label><input style={{...S.input, background:"#f0f0f0"}} value={form.diasRetraso} readOnly /></div>
           <div style={{ flex:"0 0 110px" }}><label style={S.label}>Corresponde Penalidad</label>
             <select style={S.input} value={form.correspondePenalidad} onChange={e=>upd("correspondePenalidad",e.target.value)}>
@@ -1494,9 +1477,9 @@ const ConformidadModal = ({ armada, orden, items: itemsOrden, onClose, onSaved }
           </div>
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Elaborado por</label><input style={S.input} value={form.elaboradoPor} onChange={e=>upd("elaboradoPor",e.target.value)} /></div>
-          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Nombre Responsable</label><input style={S.input} value={form.nombreResponsable} onChange={e=>upd("nombreResponsable",e.target.value)} /></div>
-          <div style={{ flex:"1 1 150px" }}><label style={S.label}>Doc. Referencia</label><input style={S.input} value={form.documentoReferencia} onChange={e=>upd("documentoReferencia",e.target.value)} /></div>
+          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Elaborado por</label><input style={{...S.input, background:"#f0f0f0"}} value={form.elaboradoPor} readOnly title="Usuario del área usuaria (se toma de la sesión)" /></div>
+          <div style={{ flex:"1 1 200px" }}><label style={S.label}>Nombre Responsable</label><input style={{...S.input, background:"#f0f0f0"}} value={form.nombreResponsable} readOnly placeholder="Se carga del centro de costo…" title="Responsable del centro de costo (SIGA)" /></div>
+          <div style={{ flex:"1 1 150px" }}><label style={S.label}>Doc. Referencia <span style={{color:"#94a3b8",fontWeight:400}}>(desactivado)</span></label><input style={{...S.input, background:"#f0f0f0", color:"#94a3b8"}} value="" disabled /></div>
         </div>
         <div style={{ marginBottom:12 }}><label style={S.label}>Nota / Glosa</label>
           <textarea style={{...S.input, height:60, resize:"vertical"}} value={form.glosa} onChange={e=>upd("glosa",e.target.value)} />
@@ -2368,6 +2351,7 @@ const LoginPage = ({ onLogin }) => {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Usuario o contraseña incorrectos."); return; }
       localStorage.setItem("sgc_token", data.token);
+      localStorage.setItem("sgc_user", JSON.stringify(data.user));
       onLogin(data.user);
     } catch (err) {
       setError("No se pudo conectar al servidor. Verifique que el backend esté activo.");
@@ -2466,7 +2450,7 @@ export default function SGCApp() {
     }
   };
 
-  const handleLogout = () => { localStorage.removeItem("sgc_token"); setUser(null); setActiveMenu("inicio"); };
+  const handleLogout = () => { localStorage.removeItem("sgc_token"); localStorage.removeItem("sgc_user"); setUser(null); setActiveMenu("inicio"); };
 
   if (!user) return <LoginPage onLogin={handleLogin} />;
 

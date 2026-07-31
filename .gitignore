@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+src/backups/
+src/*_rev*.jsx
+src/backups/
+src/*_rev*.jsx
+src/Leer.txt
