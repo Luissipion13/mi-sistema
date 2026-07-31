@@ -1,4 +1,28 @@
-const r = await swalBase.fire({
+import { useState, useEffect, useCallback, useRef } from "react";
+import Swal from "sweetalert2";
+
+// ============================================================
+// ALERTAS TEMÁTICAS (SweetAlert2) — colores e iconos del SGC
+// ============================================================
+const SGC_AZUL = "#2c3e6b";
+const swalBase = Swal.mixin({
+  confirmButtonColor: SGC_AZUL,
+  cancelButtonColor: "#95a5a6",
+  buttonsStyling: true,
+  heightAuto: false,
+});
+const _br = (m) => String(m == null ? "" : m).replace(/\n/g, "<br>");
+const _iconFor = (m) => {
+  const s = String(m || "").toLowerCase();
+  if (/no se pudo|no se puede|error|excede|no coincide|no corresponde|no existe|falta /.test(s)) return "error";
+  if (/exitosa|exitoso|correctamente|registrad|actualizad|eliminad|guardad/.test(s)) return "success";
+  return "warning";
+};
+// Reemplaza a notify()
+const notify = (msg, icon) => swalBase.fire({ icon: icon || _iconFor(msg), html: _br(msg), confirmButtonText: "Aceptar" });
+// Reemplaza a confirm() — devuelve Promise<boolean>
+const confirmDialog = async (msg, opts = {}) => {
+  const r = await swalBase.fire({
     icon: opts.icon || "question",
     html: _br(msg),
     showCancelButton: true,
