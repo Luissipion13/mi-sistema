@@ -1692,7 +1692,19 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
                             ✏️
                           </button>
                           <button
-                            onClick={() => window.open(`${API_URL}/conformidades/${cc.idConformidad}/pdf`, '_blank')}
+                            onClick={async () => {
+                              try {
+                                const token = localStorage.getItem("sgc_token");
+                                const res = await fetch(`${API_URL}/conformidades/${cc.idConformidad}/pdf`, {
+                                  headers: { "Authorization": `Bearer ${token}`, "ngrok-skip-browser-warning": "true" }
+                                });
+                                if (!res.ok) throw new Error("Error al generar PDF");
+                                const blob = await res.blob();
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, "_blank");
+                                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                              } catch (e) { notify("Error al imprimir: " + e.message); }
+                            }}
                             title="Descargar PDF"
                             style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 8px", fontSize:13 }}>
                             🖨️
