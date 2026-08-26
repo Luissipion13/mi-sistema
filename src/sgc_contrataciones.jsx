@@ -761,10 +761,20 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   }, [armadas]);
 
   // Al cambiar la Fecha Inicio del cronograma, reencadenar las cuotas existentes
+    // Al cambiar la Fecha Inicio del cronograma, reencadenar las cuotas existentes
   useEffect(() => {
     setArmadas(prev => (prev.length ? recalcCadena(prev) : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.fechaInicio]);
+
+  // Con un solo centro, queda pre-seleccionado como conformante por defecto
+  useEffect(() => {
+    if (centrosCosto.length === 1 && !form.conformidadOtraArea) {
+      updateForm("conformidadCentroUnico", true);
+      updateForm("centroCostoConformidad", centrosCosto[0].idCentroCosto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centrosCosto]);
 
   // Generar armadas al hacer clic en botón (plazo en blanco; el usuario lo pone por cuota)
   const calcularArmadas = () => {
@@ -981,35 +991,40 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
               <input style={S.input} type="number" min="1" value={form.armadaInicial} onChange={e => updateForm("armadaInicial", e.target.value)} />
             </div>
           </div>
-          {centrosCosto.length > 1 && (
+                    {centrosCosto.length >= 1 && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12, padding:"10px 12px",
               background:"#eef5ff", border:"1px solid #b6d4fe", borderRadius:4 }}>
-              <div style={{ flex:"1 1 220px" }}>
-                <label style={S.label}>¿Quién emite la conformidad? (*)</label>
-                <select style={S.select} value={form.conformidadCentroUnico ? "UNICO" : "TODOS"}
-                  onChange={e => {
-                    const unico = e.target.value === "UNICO";
-                    updateForm("conformidadCentroUnico", unico);
-                    if (!unico) updateForm("centroCostoConformidad", "");
-                  }}>
-                  <option value="TODOS">TODOS LOS CENTROS ({centrosCosto.length}) — cada uno conforma su parte</option>
-                  <option value="UNICO">UN CENTRO ESPECÍFICO — conforma por el total</option>
-                </select>
-              </div>
-              {form.conformidadCentroUnico && (
+              {centrosCosto.length > 1 && (
+                <div style={{ flex:"1 1 220px" }}>
+                  <label style={S.label}>¿Quién emite la conformidad? (*)</label>
+                  <select style={S.select} value={form.conformidadCentroUnico ? "UNICO" : "TODOS"}
+                    onChange={e => {
+                      const unico = e.target.value === "UNICO";
+                      updateForm("conformidadCentroUnico", unico);
+                      if (!unico) updateForm("centroCostoConformidad", "");
+                    }}>
+                    <option value="TODOS">TODOS LOS CENTROS ({centrosCosto.length}) — cada uno conforma su parte</option>
+                    <option value="UNICO">UN CENTRO ESPECÍFICO — conforma por el total</option>
+                  </select>
+                </div>
+              )}
+              {(form.conformidadCentroUnico || centrosCosto.length === 1) && (
                 <div style={{ flex:"1 1 100%" }}>
                   <div style={{ marginBottom:8 }}>
-                    <label style={S.label}>¿La conformidad la da otra área (no un centro de la orden)?</label>
+                    <label style={S.label}>¿La conformidad la da un área técnica? (*)</label>
                     <div style={{ display:"flex", gap:8 }}>
                       <button type="button" onClick={() => {
+                          updateForm("conformidadCentroUnico", true);
                           updateForm("conformidadOtraArea", false);
                           updateForm("areaConformidadId", ""); updateForm("areaConformidadNombre", ""); updateForm("areaConformidadSigla", "");
                           setAreaCronoSel(null); setAreaCronoQuery("");
+                          if (centrosCosto.length === 1) updateForm("centroCostoConformidad", centrosCosto[0].idCentroCosto);
                         }}
                         style={{ padding:"5px 18px", fontSize:12, borderRadius:4, border:"2px solid", cursor:"pointer",
                           borderColor: !form.conformidadOtraArea ? "#2563eb" : "#ccc", background: !form.conformidadOtraArea ? "#2563eb" : "#fff",
                           color: !form.conformidadOtraArea ? "#fff" : "#333", fontWeight:700 }}>NO</button>
                       <button type="button" onClick={() => {
+                          updateForm("conformidadCentroUnico", true);
                           updateForm("conformidadOtraArea", true);
                           updateForm("centroCostoConformidad", "");
                           api(`/areas-usuarias?q=`).then(data => setAreaCronoOpciones(data)).catch(() => {});
@@ -1021,19 +1036,25 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                   </div>
 
                   {!form.conformidadOtraArea ? (
-                    <div>
-                      <label style={S.label}>Centro de costo que conforma (*)</label>
-                      <select style={S.select} value={form.centroCostoConformidad}
-                        onChange={e => updateForm("centroCostoConformidad", e.target.value)}>
-                        <option value="">— Seleccione —</option>
-                        {centrosCosto.map((c, i) => (
-                          <option key={i} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>
-                        ))}
-                      </select>
-                    </div>
+                    centrosCosto.length > 1 ? (
+                      <div>
+                        <label style={S.label}>Centro de costo que conforma (*)</label>
+                        <select style={S.select} value={form.centroCostoConformidad}
+                          onChange={e => updateForm("centroCostoConformidad", e.target.value)}>
+                          <option value="">— Seleccione —</option>
+                          {centrosCosto.map((c, i) => (
+                            <option key={i} value={c.idCentroCosto}>{c.nombreCentroCosto}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize:11, color:"#065f46", background:"#d1fae5", padding:"5px 10px", borderRadius:4, fontWeight:600 }}>
+                        ✓ Conforma el centro de la orden: {centrosCosto[0]?.nombreCentroCosto}
+                      </div>
+                    )
                   ) : (
                     <div style={{ position:"relative" }}>
-                      <label style={S.label}>Área usuaria que dará la conformidad (*)</label>
+                      <label style={S.label}>Área técnica que dará la conformidad (*)</label>
                       <input style={S.input} value={areaCronoQuery}
                         placeholder="Escriba nombre o sigla (ej: OTI, UA, CITE...)"
                         onChange={e => { setAreaCronoQuery(e.target.value); setAreaCronoSel(null);
@@ -1069,11 +1090,11 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
                 </div>
               )}
               <div style={{ flex:"1 1 100%", fontSize:10.5, color:"#31708f" }}>
-                ℹ️ Esta orden tiene {centrosCosto.length} centros de costo. El pago se habilitará cuando
-                {form.conformidadCentroUnico
+                ℹ️ Esta orden tiene {centrosCosto.length} centro{centrosCosto.length > 1 ? "s" : ""} de costo. El pago se habilitará cuando
+                {(form.conformidadCentroUnico || centrosCosto.length === 1)
                   ? (form.conformidadOtraArea
-                      ? " el área usuaria seleccionada emita la conformidad por el total."
-                      : " el centro seleccionado emita su conformidad por el total.")
+                      ? " el área técnica seleccionada emita la conformidad por el total."
+                      : " el centro conformante emita su conformidad por el total.")
                   : " todos los centros emitan su conformidad."}
               </div>
             </div>
@@ -1674,12 +1695,18 @@ const ConformidadDetalle = ({ ordenId, onBack }) => {
                       {tieneConf ? <span style={{ background:"#2c3e6b", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>EMITIDO</span>
                         : <span style={{ background:"#f39c12", color:"#fff", borderRadius:3, padding:"2px 8px", fontSize:11 }}>PENDIENTE</span>}
                     </td>
-                    <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
-                      {!tieneConf && (
+                                        <td style={{ padding:"7px 8px", border:"1px solid #eee", textAlign:"center" }}>
+                      {!tieneConf && cc.puedeRegistrar !== false && (
                         <button onClick={() => setSelectedArmada(armadaCentro)} title="Registrar conformidad de este centro"
                           style={{ background:"#27ae60", color:"#fff", border:"none", borderRadius:3, cursor:"pointer", padding:"4px 10px", fontSize:12 }}>
                           ✓ Registrar
                         </button>
+                      )}
+                      {!tieneConf && cc.puedeRegistrar === false && (
+                        <span title="Solo el área técnica asignada puede registrar esta conformidad"
+                          style={{ background:"#e2e8f0", color:"#64748b", borderRadius:3, padding:"3px 10px", fontSize:11, fontStyle:"italic" }}>
+                          👁 Solo consulta
+                        </span>
                       )}
                       {tieneConf && (
                         <div style={{ display:"flex", gap:4, justifyContent:"center", alignItems:"center" }}>
