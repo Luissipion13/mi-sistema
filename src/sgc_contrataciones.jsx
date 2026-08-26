@@ -734,28 +734,26 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
   // Recalcula las fechas de las cuotas en cadena:
   // la 1ra arranca en la Fecha Inicio del cronograma; cada cuota siguiente
   // empieza al día siguiente del fin de la anterior. El plazo lo pone el usuario por cuota.
-  const recalcCadena = (arr) => {
-    let ini = toDate(form.fechaInicio);
+    const recalcCadena = (arr) => {
+    const ini = toDate(form.fechaInicio);
     return arr.map((a) => {
       const plazo = parseInt(a.plazo) || 0;
       if (!ini) return { ...a, fechaInicio: "", fechaFin: "" };
       const fechaInicio = toStr(ini);
       if (plazo > 0) {
         const fin = new Date(ini); fin.setDate(fin.getDate() + plazo - 1);
-        const next = new Date(fin); next.setDate(next.getDate() + 1);
-        ini = next;
         return { ...a, fechaInicio, fechaFin: toStr(fin) };
       }
-      ini = null; // sin plazo no se puede encadenar hacia adelante
       return { ...a, fechaInicio, fechaFin: "" };
     });
   };
 
   // El Plazo total y la Fecha Fin de arriba son derivados de las cuotas (solo lectura)
-  useEffect(() => {
+    useEffect(() => {
     if (armadas.length > 0) {
-      const plazoTotal = armadas.reduce((s, a) => s + (parseInt(a.plazo) || 0), 0);
-      const ultimaFin = armadas[armadas.length - 1].fechaFin || "";
+      const ultima = armadas[armadas.length - 1];
+      const plazoTotal = parseInt(ultima.plazo) || 0;
+      const ultimaFin = ultima.fechaFin || "";
       setForm(f => ({ ...f, plazo: plazoTotal, fechaFin: ultimaFin }));
     } else {
       setForm(f => ({ ...f, plazo: "", fechaFin: "" }));
@@ -782,7 +780,7 @@ const CronogramaModal = ({ order, onClose, onSaved }) => {
       nuevas.push({
         cuota: i + parseInt(form.armadaInicial || 1),
         plazo: "",                                        // en blanco: lo asigna el usuario
-        fechaInicio: i === 0 ? (form.fechaInicio || "") : "", // la 1ra arranca en la fecha inicio
+        fechaInicio: form.fechaInicio || "", // todas arrancan en la fecha de inicio del contrato
         fechaFin: "",
         porcentaje, montoArmada
       });
